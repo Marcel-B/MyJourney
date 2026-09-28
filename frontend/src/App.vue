@@ -184,7 +184,7 @@ async function onImportFileSelected(event: Event) {
     toast.add({
       severity: 'success',
       summary: 'Import abgeschlossen',
-      detail: `${result.imported} von ${result.total} Orten importiert${result.skipped ? `, ${result.skipped} übersprungen (schon vorhanden)` : ''}.`,
+      detail: `${result.imported} von ${result.total} Orten importiert${result.updated ? `, ${result.updated} als besucht markiert` : ''}${result.skipped ? `, ${result.skipped} übersprungen (schon vorhanden)` : ''}.`,
       life: 6000,
     })
   } catch (error) {

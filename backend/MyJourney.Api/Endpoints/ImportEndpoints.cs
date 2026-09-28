@@ -33,47 +33,73 @@ public static class ImportEndpoints
                 return Results.BadRequest(new { error = $"Datei konnte nicht gelesen werden: {ex.Message}" });
             }
 
-            // Duplikate überspringen: Name existiert schon (unabhängig von Groß-/Kleinschreibung).
-            var existingNames = (await db.Places.AsNoTracking().Select(p => p.Name).ToListAsync())
-                .Select(n => n.ToLowerInvariant())
-                .ToHashSet();
+            // Vorhandene Orte nach Name (unabhängig von Groß-/Kleinschreibung) nachschlagen können.
+            var byName = new Dictionary<string, Place>();
+            foreach (var place in await db.Places.ToListAsync())
+            {
+                byName.TryAdd(place.Name.ToLowerInvariant(), place);
+            }
 
             var imported = new List<string>();
+            var updated = new List<string>();
             var skipped = new List<string>();
             var now = DateTime.UtcNow;
 
             foreach (var candidate in candidates)
             {
                 var key = candidate.Name.ToLowerInvariant();
-                if (!existingNames.Add(key))
+                if (byName.TryGetValue(key, out var existing))
                 {
-                    skipped.Add(candidate.Name);
+                    // Eine Bewertung wertet einen schon vorhandenen Wunschort zu "besucht" auf.
+                    if (candidate.Rating is not null && existing.Status == PlaceStatus.Wishlist)
+                    {
+                        existing.Status = PlaceStatus.Visited;
+                        existing.Rating = candidate.Rating;
+                        existing.VisitedAt ??= candidate.VisitedAt;
+                        existing.Country ??= candidate.Country;
+                        existing.Notes = string.IsNullOrWhiteSpace(existing.Notes)
+                            ? candidate.Notes
+                            : existing.Notes;
+                        existing.UpdatedAt = now;
+                        updated.Add(candidate.Name);
+                    }
+                    else
+                    {
+                        skipped.Add(candidate.Name);
+                    }
                     continue;
                 }
 
-                db.Places.Add(new Place
+                var place = new Place
                 {
                     Id = Guid.NewGuid(),
                     Name = candidate.Name,
                     Kind = PlaceKind.Place,
-                    Status = PlaceStatus.Wishlist,
+                    Status = candidate.Rating is null ? PlaceStatus.Wishlist : PlaceStatus.Visited,
                     Latitude = candidate.Latitude,
                     Longitude = candidate.Longitude,
                     Notes = candidate.Notes,
+                    Rating = candidate.Rating,
+                    VisitedAt = candidate.VisitedAt,
+                    Country = candidate.Country,
                     CreatedAt = now,
                     UpdatedAt = now,
-                });
+                };
+                db.Places.Add(place);
+                byName[key] = place;
                 imported.Add(candidate.Name);
             }
 
             await db.SaveChangesAsync();
 
-            return Results.Ok(new ImportResult(candidates.Count, imported.Count, skipped.Count, imported, skipped));
+            return Results.Ok(new ImportResult(
+                candidates.Count, imported.Count, updated.Count, skipped.Count,
+                imported, updated, skipped));
         })
         .DisableAntiforgery()
         .WithTags("Import")
         .WithSummary("Google-Maps-Orte importieren")
-        .WithDescription("Nimmt eine Google-Takeout-Datei entgegen (\"Gespeicherte Orte\"-GeoJSON oder Listen-CSV) und legt die Orte als Wunschziele an. Bereits vorhandene Namen werden übersprungen.");
+        .WithDescription("Nimmt eine Google-Takeout-Datei entgegen (\"Gespeicherte Orte\"-GeoJSON, \"Bewertungen\"-GeoJSON oder Listen-CSV). Gespeicherte Orte werden als Wunschziele angelegt, bewertete Orte als besucht mit Bewertung; ein vorhandener Wunschort wird durch eine Bewertung zu \"besucht\" aufgewertet. Sonst werden vorhandene Namen übersprungen.");
 
         return app;
     }

@@ -8,6 +8,8 @@ namespace MyJourney.Api.Services;
 /// <summary>
 /// Liest Google-Takeout-Exporte von "Maps (Meine Orte)":
 /// - "Gespeicherte Orte.json" / "Saved Places.json": GeoJSON mit den Sternorten
+///   (altes Format mit "Location"/"Title" und aktuelles Format mit "location")
+/// - "Bewertungen.json" / "Reviews.json": GeoJSON mit den eigenen Google-Bewertungen
 /// - Listen-CSVs (z. B. "Favoriten.csv"): Spalten Title/Titel, Note/Notiz, URL
 /// </summary>
 public static partial class GoogleTakeoutParser
@@ -39,31 +41,100 @@ public static partial class GoogleTakeoutParser
         {
             if (!feature.TryGetProperty("properties", out var props)) continue;
 
+            // "Bewertungen.json": Features mit eigener Google-Bewertung (1–5 Sterne).
+            if (props.TryGetProperty("five_star_rating_published", out _))
+            {
+                var review = ParseReviewFeature(feature, props);
+                if (review is not null) result.Add(review);
+                continue;
+            }
+
             var name = GetString(props, "Title") ?? GetString(props, "title");
-            string? address = null;
+            string? address = null, countryCode = null;
+            // Älteres Takeout-Format: "Location" mit "Business Name"/"Name"/"Address".
             if (props.TryGetProperty("Location", out var location) && location.ValueKind == JsonValueKind.Object)
             {
                 name ??= GetString(location, "Business Name") ?? GetString(location, "Name");
                 address = GetString(location, "Address");
             }
+            // Aktuelles Takeout-Format: "location" mit "name"/"address"/"country_code".
+            if (props.TryGetProperty("location", out var newLocation) && newLocation.ValueKind == JsonValueKind.Object)
+            {
+                name ??= GetString(newLocation, "name");
+                address ??= GetString(newLocation, "address");
+                countryCode = GetString(newLocation, "country_code");
+            }
+            // Einträge ohne Ortsnamen (z. B. "keine Informationen verfügbar") überspringen.
             if (string.IsNullOrWhiteSpace(name)) continue;
 
-            double? lat = null, lon = null;
-            if (feature.TryGetProperty("geometry", out var geometry) &&
-                geometry.ValueKind == JsonValueKind.Object &&
-                geometry.TryGetProperty("coordinates", out var coords) &&
-                coords.ValueKind == JsonValueKind.Array &&
-                coords.GetArrayLength() >= 2)
-            {
-                // GeoJSON: [Längengrad, Breitengrad]
-                lon = coords[0].GetDouble();
-                lat = coords[1].GetDouble();
-            }
-
-            result.Add(new ImportedPlaceCandidate(name.Trim(), lat, lon, address));
+            var (lat, lon) = GetCoordinates(feature);
+            result.Add(new ImportedPlaceCandidate(
+                name.Trim(), lat, lon, address,
+                Country: string.IsNullOrWhiteSpace(countryCode) ? null : countryCode.Trim().ToUpperInvariant()));
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Ein Feature aus "Bewertungen.json": location {name, address, country_code},
+    /// five_star_rating_published, date, optional review_text_published.
+    /// </summary>
+    private static ImportedPlaceCandidate? ParseReviewFeature(JsonElement feature, JsonElement props)
+    {
+        string? name = null, address = null, countryCode = null;
+        if (props.TryGetProperty("location", out var location) && location.ValueKind == JsonValueKind.Object)
+        {
+            name = GetString(location, "name");
+            address = GetString(location, "address");
+            countryCode = GetString(location, "country_code");
+        }
+        // Ohne Ortsnamen (Google liefert manche Bewertungen ohne "location") können wir nichts anlegen.
+        if (string.IsNullOrWhiteSpace(name)) return null;
+
+        int? rating = null;
+        if (props.TryGetProperty("five_star_rating_published", out var ratingElement) &&
+            ratingElement.ValueKind == JsonValueKind.Number &&
+            ratingElement.TryGetInt32(out var ratingValue) &&
+            ratingValue is >= 1 and <= 5)
+        {
+            rating = ratingValue;
+        }
+
+        DateOnly? visitedAt = null;
+        if (GetString(props, "date") is { } date &&
+            DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var parsedDate))
+        {
+            visitedAt = DateOnly.FromDateTime(parsedDate.UtcDateTime);
+        }
+
+        var reviewText = GetString(props, "review_text_published");
+        var notes = string.IsNullOrWhiteSpace(reviewText) ? address : reviewText.Trim();
+
+        var (lat, lon) = GetCoordinates(feature);
+        return new ImportedPlaceCandidate(
+            name.Trim(), lat, lon, notes,
+            Rating: rating,
+            VisitedAt: visitedAt,
+            Country: string.IsNullOrWhiteSpace(countryCode) ? null : countryCode.Trim().ToUpperInvariant());
+    }
+
+    private static (double? Lat, double? Lon) GetCoordinates(JsonElement feature)
+    {
+        if (feature.TryGetProperty("geometry", out var geometry) &&
+            geometry.ValueKind == JsonValueKind.Object &&
+            geometry.TryGetProperty("coordinates", out var coords) &&
+            coords.ValueKind == JsonValueKind.Array &&
+            coords.GetArrayLength() >= 2 &&
+            coords[0].ValueKind == JsonValueKind.Number &&
+            coords[1].ValueKind == JsonValueKind.Number)
+        {
+            // GeoJSON: [Längengrad, Breitengrad]
+            return (coords[1].GetDouble(), coords[0].GetDouble());
+        }
+
+        return (null, null);
     }
 
     private static List<ImportedPlaceCandidate> ParseCsv(string content)
