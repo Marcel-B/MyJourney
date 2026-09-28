@@ -82,6 +82,6 @@ Damit ist die App unter `https://<ct-name>.<tailnet>.ts.net` für alle Geräte i
   systemctl enable --now myjourney-autoupdate
   ```
 
-  Status und Protokoll: `systemctl status myjourney-autoupdate` bzw. `journalctl -u myjourney-autoupdate -f`. Das Prüfintervall (Standard: 300 s) lässt sich über die Umgebungsvariable `INTERVAL` in der Service-Datei anpassen; `./deploy/auto-update.sh --once` eignet sich alternativ für cron oder einen systemd-Timer.
+  Status und Protokoll: `systemctl status myjourney-autoupdate` bzw. `journalctl -u myjourney-autoupdate -f`. Das Prüfintervall (Standard: 300 s) und der Zwangs-Rebuild ohne neue Commits (Standard: alle 7 Tage, damit Sicherheitsupdates der Basis-Images ankommen; `0` = aus) lassen sich über die Umgebungsvariablen `INTERVAL` und `FORCE_REBUILD_DAYS` in der Service-Datei anpassen; `./deploy/auto-update.sh --once` eignet sich alternativ für cron oder einen systemd-Timer.
 - **Logs:** `docker compose logs -f`
 - **Backup:** die Datei `data/myjourney.db` sichern (Container vorher kurz stoppen oder SQLite-Online-Backup nutzen).
