@@ -15,7 +15,13 @@ Eine Anwendung zum Planen von Wohnmobil-Reisen: Orte und Regionen sammeln, die m
 ```
 backend/MyJourney.Api/   ASP.NET-Core-Backend (REST-API, MCP-Server, SQLite)
 frontend/                Vue-3-Frontend (PrimeVue, Tailwind, Axios)
+Dockerfile               Ein Image für alles: Backend liefert das Frontend mit aus
+docker-compose.yml       Betrieb mit persistenter SQLite-DB und API-Key
 ```
+
+## Deployment
+
+Für den Betrieb auf Proxmox (Docker in einem LXC-Container) mit Zugriff über Tailscale siehe [DEPLOY.md](DEPLOY.md). Kurzfassung: `docker compose up -d --build`, dann `tailscale serve --bg 8080`.
 
 ## Entwicklung starten
 
@@ -96,4 +102,4 @@ Standardmäßig ist die API offen (lokale Entwicklung). Sobald in `appsettings.j
 }
 ```
 
-Im Frontend wird der Key über die Umgebungsvariable `VITE_API_KEY` gesetzt (siehe `frontend/.env.example`).
+Das Frontend fragt den Key beim ersten Zugriff über einen Dialog ab und merkt ihn sich im Browser (localStorage). Alternativ kann er zur Build-Zeit über die Umgebungsvariable `VITE_API_KEY` gesetzt werden (siehe `frontend/.env.example`).

@@ -4,6 +4,7 @@ import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
 import DataTable from 'primevue/datatable'
+import Dialog from 'primevue/dialog'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputText from 'primevue/inputtext'
@@ -16,8 +17,10 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useToast } from 'primevue/usetoast'
 import { isAxiosError } from 'axios'
 
+import Password from 'primevue/password'
+
 import PlaceDialog from './components/PlaceDialog.vue'
-import { createPlace, deletePlace, fetchPlaces, markVisited, updatePlace } from './api/places'
+import { createPlace, deletePlace, fetchPlaces, markVisited, setApiKey, updatePlace } from './api/places'
 import type { Place, PlaceInput, PlaceStatus } from './types'
 
 const toast = useToast()
@@ -31,6 +34,8 @@ const stopoversOnly = ref(false)
 const statusFilter = ref<'All' | PlaceStatus>('All')
 const dialogVisible = ref(false)
 const editingPlace = ref<Place | null>(null)
+const apiKeyDialogVisible = ref(false)
+const apiKeyInput = ref('')
 
 const statusFilterOptions = [
   { label: 'Alle', value: 'All' },
@@ -62,12 +67,31 @@ function errorMessage(error: unknown): string {
   return 'Unerwarteter Fehler.'
 }
 
+// Bei 401 den Key-Dialog öffnen statt nur einen Fehler-Toast zu zeigen.
+function handleUnauthorized(error: unknown): boolean {
+  if (isAxiosError(error) && error.response?.status === 401) {
+    apiKeyDialogVisible.value = true
+    return true
+  }
+  return false
+}
+
+function saveApiKey() {
+  if (!apiKeyInput.value.trim()) return
+  setApiKey(apiKeyInput.value.trim())
+  apiKeyInput.value = ''
+  apiKeyDialogVisible.value = false
+  loadPlaces()
+}
+
 async function loadPlaces() {
   loading.value = true
   try {
     places.value = await fetchPlaces()
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Laden fehlgeschlagen', detail: errorMessage(error), life: 6000 })
+    if (!handleUnauthorized(error)) {
+      toast.add({ severity: 'error', summary: 'Laden fehlgeschlagen', detail: errorMessage(error), life: 6000 })
+    }
   } finally {
     loading.value = false
   }
@@ -97,7 +121,9 @@ async function savePlace(input: PlaceInput) {
     }
     dialogVisible.value = false
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Speichern fehlgeschlagen', detail: errorMessage(error), life: 6000 })
+    if (!handleUnauthorized(error)) {
+      toast.add({ severity: 'error', summary: 'Speichern fehlgeschlagen', detail: errorMessage(error), life: 6000 })
+    }
   } finally {
     saving.value = false
   }
@@ -270,4 +296,23 @@ onMounted(loadPlaces)
   </div>
 
   <PlaceDialog v-model:visible="dialogVisible" :place="editingPlace" :saving="saving" @save="savePlace" />
+
+  <Dialog v-model:visible="apiKeyDialogVisible" modal header="API-Key erforderlich" class="w-full max-w-md mx-4">
+    <p class="mt-0 text-sm text-muted-color">
+      Das Backend ist per API-Key geschützt. Bitte den Key eingeben – er wird lokal im Browser gespeichert.
+    </p>
+    <Password
+      v-model="apiKeyInput"
+      :feedback="false"
+      toggle-mask
+      input-class="w-full"
+      class="w-full"
+      placeholder="API-Key"
+      autofocus
+      @keyup.enter="saveApiKey"
+    />
+    <template #footer>
+      <Button label="Speichern" icon="pi pi-check" :disabled="!apiKeyInput.trim()" @click="saveApiKey" />
+    </template>
+  </Dialog>
 </template>

@@ -1,0 +1,13 @@
+services:
+  myjourney:
+    build: .
+    container_name: myjourney
+    restart: unless-stopped
+    ports:
+      # Nur lokal binden – nach außen geht es über Tailscale (tailscale serve)
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/data
+    environment:
+      # API-Key für /api und /mcp. Leer lassen = Zugriff offen (nur für Tests sinnvoll).
+      - Security__ApiKeys__0=${MYJOURNEY_API_KEY:-}

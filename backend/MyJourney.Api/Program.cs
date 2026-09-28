@@ -44,10 +44,19 @@ using (var scope = app.Services.CreateScope())
 app.UseCors();
 app.UseMiddleware<ApiKeyMiddleware>();
 
+// Im Container liegt das gebaute Frontend in wwwroot und wird direkt mit ausgeliefert.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapOpenApi();
 app.MapScalarApiReference(); // interaktive API-Doku unter /scalar/v1
 
 app.MapPlaceEndpoints();
 app.MapMcp("/mcp");
+
+if (File.Exists(Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html")))
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();

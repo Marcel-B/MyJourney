@@ -1,12 +1,39 @@
 import axios from 'axios'
 import type { MarkVisitedInput, Place, PlaceInput, PlaceKind, PlaceStatus } from '../types'
 
+const API_KEY_STORAGE = 'myjourney.apiKey'
+
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
-  headers: import.meta.env.VITE_API_KEY
-    ? { 'X-Api-Key': import.meta.env.VITE_API_KEY }
-    : undefined,
 })
+
+// Der Key kommt aus dem localStorage (über den Dialog in der App gesetzt)
+// oder als Fallback aus der Build-Umgebung (VITE_API_KEY).
+client.interceptors.request.use((config) => {
+  const key = getApiKey()
+  if (key) config.headers['X-Api-Key'] = key
+  return config
+})
+
+let sessionApiKey: string | null = null
+
+export function getApiKey(): string | null {
+  if (sessionApiKey) return sessionApiKey
+  try {
+    return localStorage.getItem(API_KEY_STORAGE) || import.meta.env.VITE_API_KEY || null
+  } catch {
+    return import.meta.env.VITE_API_KEY || null
+  }
+}
+
+export function setApiKey(key: string): void {
+  sessionApiKey = key
+  try {
+    localStorage.setItem(API_KEY_STORAGE, key)
+  } catch {
+    // localStorage nicht verfügbar (z. B. Private Mode) – der Key gilt dann nur für diese Sitzung.
+  }
+}
 
 export interface PlaceFilter {
   status?: PlaceStatus
