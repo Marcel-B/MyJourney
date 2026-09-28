@@ -31,6 +31,8 @@ builder.Services.AddOpenApi(options =>
     });
 });
 
+builder.Services.AddSingleton<MyJourney.Api.Security.OAuthTokenService>();
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -67,6 +69,7 @@ app.MapScalarApiReference(); // interaktive API-Doku unter /scalar/v1
 app.MapPlaceEndpoints();
 app.MapTripEndpoints();
 app.MapImportEndpoints();
+app.MapOAuthEndpoints();
 app.MapMcp("/mcp");
 
 if (File.Exists(Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html")))

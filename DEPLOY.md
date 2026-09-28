@@ -65,7 +65,13 @@ Damit ist die App unter `https://<ct-name>.<tailnet>.ts.net` für alle Geräte i
     --header "X-Api-Key: <dein-key>"
   ```
 
-- **ChatGPT (Custom GPT mit Actions):** ChatGPT läuft außerhalb des Tailnets und braucht deshalb einen öffentlichen Zugang. Der API-Key ist dann Pflicht.
+- **ChatGPT (MCP-Connector):** ChatGPT läuft außerhalb des Tailnets und braucht deshalb einen öffentlichen Zugang (Schritt 1 und 2 unten). Die App bringt einen OAuth-Flow mit, sodass der Connector direkt auf `/mcp` zeigen kann:
+
+  1. Funnel aktivieren und öffentliche URL in die `.env` eintragen (siehe Custom-GPT-Schritte 1–2 unten – die URL ist für den OAuth-Flow Pflicht).
+  2. In ChatGPT: **Einstellungen → Connectors → Erweiterte Einstellungen → Developer Mode** aktivieren, dann **Connector erstellen** mit der MCP-Server-URL `https://<ct-name>.<tailnet>.ts.net/mcp` und Authentifizierung **OAuth**.
+  3. Beim Verbinden öffnet sich die MyJourney-Freigabeseite: dort den `MYJOURNEY_API_KEY` eingeben und **Zugriff erlauben**. ChatGPT erhält dann ein Bearer-Token mit 30 Tagen Laufzeit (danach einfach neu verbinden). Ein Key-Wechsel in der `.env` macht alle ausgestellten Tokens sofort ungültig.
+
+- **ChatGPT (Custom GPT mit Actions):** Alternative für Konten, die eigene GPTs erstellen können. Der API-Key ist dann Pflicht.
 
   1. App per Funnel öffentlich freigeben und die öffentliche URL in die `.env` eintragen, damit sie im OpenAPI-Schema steht:
 
