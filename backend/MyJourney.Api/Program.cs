@@ -33,6 +33,13 @@ builder.Services.AddOpenApi(options =>
 
 builder.Services.AddSingleton<MyJourney.Api.Security.OAuthTokenService>();
 
+builder.Services.AddHttpClient<MyJourney.Api.Services.OverpassClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(30);
+    // Overpass verlangt einen identifizierenden User-Agent.
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("MyJourney/1.0 (+https://github.com/Marcel-B/MyJourney)");
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -70,6 +77,7 @@ app.MapPlaceEndpoints();
 app.MapTripEndpoints();
 app.MapImportEndpoints();
 app.MapOAuthEndpoints();
+app.MapNearbyEndpoints();
 app.MapMcp("/mcp");
 
 if (File.Exists(Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html")))

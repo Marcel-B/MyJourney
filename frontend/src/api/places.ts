@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ImportResult, MarkVisitedInput, Place, PlaceInput, PlaceKind, PlaceStatus, Trip, TripInput } from '../types'
+import type { ImportResult, MarkVisitedInput, NearbyPoi, Place, PlaceInput, PlaceKind, PlaceStatus, Trip, TripInput } from '../types'
 
 const API_KEY_STORAGE = 'myjourney.apiKey'
 
@@ -95,5 +95,10 @@ export async function deleteTrip(id: string): Promise<void> {
 
 export async function fetchRegions(): Promise<string[]> {
   const { data } = await client.get<string[]>('/api/regions')
+  return data
+}
+
+export async function fetchNearby(lat: number, lon: number, radius = 400): Promise<NearbyPoi[]> {
+  const { data } = await client.get<NearbyPoi[]>('/api/nearby', { params: { lat, lon, radius } })
   return data
 }

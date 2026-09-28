@@ -52,3 +52,6 @@ public record UpdatePlaceRequest(
 
 /// <summary>Kurzform, um einen Wunschort als besucht zu markieren.</summary>
 public record MarkVisitedRequest(DateOnly? VisitedAt = null, int? Rating = null, string? Notes = null);
+
+/// <summary>Ein benannter Ort aus der Umgebung (OpenStreetMap) für "Hier bin ich".</summary>
+public record NearbyPoi(string Name, double Latitude, double Longitude, string Category, int DistanceMeters);
