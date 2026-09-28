@@ -19,9 +19,10 @@ import { isAxiosError } from 'axios'
 
 import Password from 'primevue/password'
 
+import MapView from './components/MapView.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
-import { createPlace, deletePlace, fetchPlaces, importGooglePlaces, markVisited, setApiKey, updatePlace } from './api/places'
-import type { Place, PlaceInput, PlaceStatus } from './types'
+import { createPlace, deletePlace, fetchPlaces, fetchTrips, importGooglePlaces, markVisited, setApiKey, updatePlace } from './api/places'
+import type { Place, PlaceInput, PlaceStatus, Trip } from './types'
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -38,6 +39,13 @@ const apiKeyDialogVisible = ref(false)
 const apiKeyInput = ref('')
 const importInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
+const trips = ref<Trip[]>([])
+const view = ref<'list' | 'map'>('list')
+
+const viewOptions = [
+  { icon: 'pi pi-list', value: 'list', label: 'Liste' },
+  { icon: 'pi pi-map', value: 'map', label: 'Karte' },
+]
 
 const statusFilterOptions = [
   { label: 'Alle', value: 'All' },
@@ -90,6 +98,7 @@ async function loadPlaces() {
   loading.value = true
   try {
     places.value = await fetchPlaces()
+    trips.value = await fetchTrips()
   } catch (error) {
     if (!handleUnauthorized(error)) {
       toast.add({ severity: 'error', summary: 'Laden fehlgeschlagen', detail: errorMessage(error), life: 6000 })
@@ -251,18 +260,28 @@ onMounted(loadPlaces)
     </section>
 
     <section class="flex flex-wrap items-center gap-4">
-      <SelectButton v-model="statusFilter" :options="statusFilterOptions" option-label="label" option-value="value" :allow-empty="false" />
-      <IconField class="flex-1 min-w-52">
-        <InputIcon class="pi pi-search" />
-        <InputText v-model="search" placeholder="Suchen nach Name, Region, Land …" class="w-full" />
-      </IconField>
-      <div class="flex items-center gap-2">
-        <ToggleSwitch v-model="stopoversOnly" input-id="filter-stopover" />
-        <label for="filter-stopover" class="text-sm">Nur Zwischenstopps</label>
-      </div>
+      <SelectButton v-model="view" :options="viewOptions" option-label="label" option-value="value" :allow-empty="false">
+        <template #option="{ option }">
+          <i :class="option.icon" class="mr-2" />{{ option.label }}
+        </template>
+      </SelectButton>
+      <template v-if="view === 'list'">
+        <SelectButton v-model="statusFilter" :options="statusFilterOptions" option-label="label" option-value="value" :allow-empty="false" />
+        <IconField class="flex-1 min-w-52">
+          <InputIcon class="pi pi-search" />
+          <InputText v-model="search" placeholder="Suchen nach Name, Region, Land …" class="w-full" />
+        </IconField>
+        <div class="flex items-center gap-2">
+          <ToggleSwitch v-model="stopoversOnly" input-id="filter-stopover" />
+          <label for="filter-stopover" class="text-sm">Nur Zwischenstopps</label>
+        </div>
+      </template>
     </section>
 
+    <MapView v-if="view === 'map'" :places="places" :trips="trips" />
+
     <DataTable
+      v-if="view === 'list'"
       :value="filteredPlaces"
       :loading="loading"
       data-key="id"

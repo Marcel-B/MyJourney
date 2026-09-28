@@ -32,6 +32,27 @@ export interface PlaceInput {
   isStopoverCandidate: boolean
 }
 
+export interface TripStop {
+  id: string
+  order: number
+  placeId: string | null
+  name: string
+  latitude: number | null
+  longitude: number | null
+  notes: string | null
+}
+
+export interface Trip {
+  id: string
+  name: string
+  notes: string | null
+  startDate: string | null
+  endDate: string | null
+  stops: TripStop[]
+  createdAt: string
+  updatedAt: string
+}
+
 export interface ImportResult {
   total: number
   imported: number

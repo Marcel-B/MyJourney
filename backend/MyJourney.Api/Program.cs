@@ -52,6 +52,7 @@ app.MapOpenApi();
 app.MapScalarApiReference(); // interaktive API-Doku unter /scalar/v1
 
 app.MapPlaceEndpoints();
+app.MapTripEndpoints();
 app.MapImportEndpoints();
 app.MapMcp("/mcp");
 

@@ -6,7 +6,7 @@ Eine Anwendung zum Planen von Wohnmobil-Reisen: Orte und Regionen sammeln, die m
 
 | Bereich  | Technologie |
 | -------- | ----------- |
-| Frontend | Vue 3 (TypeScript), PrimeVue v4 (Aura-Theme), Tailwind CSS v4, Axios, Vite |
+| Frontend | Vue 3 (TypeScript), PrimeVue v4 (Aura-Theme), Tailwind CSS v4, Axios, Leaflet (OpenStreetMap), Vite |
 | Backend  | .NET 10 (C#), ASP.NET Core Minimal APIs, EF Core mit SQLite |
 | KI-Zugriff | OpenAPI-Dokumentation + MCP-Server-Endpunkt (Model Context Protocol) |
 
@@ -69,6 +69,17 @@ Zusätzlich kann jeder Eintrag als **Zwischenstopp-Kandidat** markiert werden �
 | DELETE | `/api/places/{id}` | Eintrag löschen |
 | GET | `/api/regions` | Alle erfassten Regionsnamen |
 | POST | `/api/import/google` | Google-Takeout-Datei importieren (Multipart-Upload) |
+| GET | `/api/trips` | Reisen mit ihren Stopps auflisten |
+| GET | `/api/trips/{id}` | Eine Reise abrufen |
+| POST | `/api/trips` | Reise mit geordneten Stopps anlegen |
+| PUT | `/api/trips/{id}` | Reise aktualisieren (ersetzt auch die Stopps) |
+| DELETE | `/api/trips/{id}` | Reise löschen |
+
+## Karte und geplante Reisen
+
+Die Ansicht **Karte** zeigt alle Einträge mit Koordinaten auf einer OpenStreetMap-Karte (blau = Wunschliste, grün = besucht). Über die Reise-Auswahl lässt sich eine geplante Route mit nummerierten Stopps einblenden.
+
+Eine Reise (`Trip`) besteht aus geordneten Stopps: Jeder Stopp verweist entweder per `placeId` auf einen erfassten Ort oder bringt einen eigenen Namen mit Koordinaten mit. So kann ein KI-Assistent per `create_trip` (MCP) oder `POST /api/trips` eine geplante Route ablegen, die anschließend in der App sichtbar ist.
 
 ## Google-Maps-Orte importieren
 
@@ -89,6 +100,8 @@ Das Backend enthält einen MCP-Server unter `/mcp` (Streamable-HTTP-Transport). 
 | `list_stopover_candidates` | Orte, die sich als Zwischenstopp eignen |
 | `search_places` | Freitextsuche über alle Einträge |
 | `add_wishlist_place` | Neues Wunschziel hinzufügen |
+| `list_trips` | Geplante Reisen mit ihren Stopps auflisten |
+| `create_trip` | Geplante Reise mit geordneten Stopps anlegen |
 
 Beispiel-Konfiguration für Claude Code:
 

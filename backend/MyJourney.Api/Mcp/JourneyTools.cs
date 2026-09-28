@@ -99,6 +99,57 @@ public static class JourneyTools
         return PlaceResponse.From(place);
     }
 
+    [McpServerTool(Name = "list_trips")]
+    [Description("Listet alle geplanten Reisen mit ihren Stopps in Reihenfolge, inklusive Koordinaten der Stopps.")]
+    public static async Task<List<TripResponse>> ListTrips(JourneyDbContext db)
+    {
+        var trips = await db.Trips.AsNoTracking()
+            .Include(t => t.Stops)
+            .ThenInclude(s => s.Place)
+            .OrderByDescending(t => t.UpdatedAt)
+            .ToListAsync();
+        return trips.Select(TripResponse.From).ToList();
+    }
+
+    [McpServerTool(Name = "create_trip")]
+    [Description("Legt eine geplante Reise mit geordneten Stopps an, die anschließend in der App auf der Karte angezeigt wird. Ein Stopp verweist per placeId auf einen erfassten Ort (siehe list_wishlist/list_visited/search_places) oder bringt einen eigenen Namen mit Koordinaten mit. Die Reihenfolge der Stopps im Array ist die Reiseroute.")]
+    public static async Task<TripResponse> CreateTrip(
+        JourneyDbContext db,
+        [Description("Name der Reise, z. B. \"Südnorwegen Sommer 2027\".")] string name,
+        [Description("Die Stopps der Route in Reihenfolge.")] List<TripStopInput> stops,
+        [Description("Beschreibung/Notizen zur Reise.")] string? notes = null,
+        [Description("Geplanter Start (Format yyyy-MM-dd).")] string? startDate = null,
+        [Description("Geplantes Ende (Format yyyy-MM-dd).")] string? endDate = null)
+    {
+        var request = new CreateTripRequest(
+            name,
+            notes,
+            ParseDate(startDate, "startDate"),
+            ParseDate(endDate, "endDate"),
+            stops);
+
+        var (trip, error) = await Endpoints.TripEndpoints.BuildTrip(db, request, existing: null);
+        if (error is not null || trip is null)
+            throw new ArgumentException("Ungültige Reisedaten: Name darf nicht leer sein, jeder Stopp braucht eine existierende placeId oder einen Namen.");
+
+        db.Trips.Add(trip);
+        await db.SaveChangesAsync();
+
+        var created = await db.Trips.AsNoTracking()
+            .Include(t => t.Stops)
+            .ThenInclude(s => s.Place)
+            .FirstAsync(t => t.Id == trip.Id);
+        return TripResponse.From(created);
+    }
+
+    private static DateOnly? ParseDate(string? value, string paramName)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        return DateOnly.TryParse(value, System.Globalization.CultureInfo.InvariantCulture, out var date)
+            ? date
+            : throw new ArgumentException($"{paramName} muss das Format yyyy-MM-dd haben.");
+    }
+
     private static async Task<List<PlaceResponse>> QueryPlaces(
         JourneyDbContext db,
         PlaceStatus? status,
