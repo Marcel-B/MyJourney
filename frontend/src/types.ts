@@ -84,3 +84,11 @@ export interface MarkVisitedInput {
   rating?: number | null
   notes?: string | null
 }
+
+export interface NearbyPoi {
+  name: string
+  latitude: number
+  longitude: number
+  category: string
+  distanceMeters: number
+}

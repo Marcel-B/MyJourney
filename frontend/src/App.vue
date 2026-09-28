@@ -21,6 +21,7 @@ import Password from 'primevue/password'
 
 import MapView from './components/MapView.vue'
 import TripsView from './components/TripsView.vue'
+import HereDialog from './components/HereDialog.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
 import { createPlace, deletePlace, fetchPlaces, fetchTrips, importGooglePlaces, markVisited, setApiKey, updatePlace } from './api/places'
 import type { Place, PlaceInput, PlaceStatus, Trip } from './types'
@@ -41,6 +42,7 @@ const apiKeyInput = ref('')
 const importInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const trips = ref<Trip[]>([])
+const hereDialogVisible = ref(false)
 const view = ref<'list' | 'map' | 'trips'>('list')
 
 const viewOptions = [
@@ -232,6 +234,14 @@ onMounted(loadPlaces)
           v-tooltip.bottom="'Takeout-Export: „Gespeicherte Orte“-JSON oder Listen-CSV'"
           @click="importInput?.click()"
         />
+        <Button
+          label="Hier bin ich"
+          icon="pi pi-map-marker"
+          severity="secondary"
+          outlined
+          v-tooltip.bottom="'Aktuellen Ort als besucht speichern'"
+          @click="hereDialogVisible = true"
+        />
         <Button label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
       </div>
       <input ref="importInput" type="file" accept=".json,.csv,.geojson" class="hidden" @change="onImportFileSelected" />
@@ -283,6 +293,8 @@ onMounted(loadPlaces)
     <MapView v-if="view === 'map'" :places="places" :trips="trips" />
 
     <TripsView v-if="view === 'trips'" :trips="trips" :places="places" :loading="loading" @changed="loadPlaces" />
+
+    <HereDialog v-model:visible="hereDialogVisible" :places="places" @saved="loadPlaces" />
 
     <DataTable
       v-if="view === 'list'"
