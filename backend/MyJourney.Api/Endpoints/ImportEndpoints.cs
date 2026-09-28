@@ -105,6 +105,7 @@ public static class ImportEndpoints
         })
         .DisableAntiforgery()
         .WithTags("Import")
+        .WithName("ImportGooglePlaces")
         .WithSummary("Google-Maps-Orte importieren")
         .WithDescription("Nimmt eine Google-Takeout-Datei entgegen (\"Gespeicherte Orte\"-GeoJSON, \"Bewertungen\"-GeoJSON oder Listen-CSV). Google-Orte mit Datum oder Bewertung werden als besucht angelegt (Datum aus der Datei), Listen-CSVs als Wunschziele. Ein vorhandener Eintrag wird durch Bewertung/Datum aufgewertet statt doppelt angelegt; sonst werden vorhandene Namen übersprungen.");
 

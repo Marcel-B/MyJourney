@@ -41,6 +41,7 @@ public static class PlaceEndpoints
 
             return Results.Ok(places);
         })
+        .WithName("ListPlaces")
         .WithSummary("Orte und Regionen auflisten")
         .WithDescription("Filterbar nach Status (Wishlist/Visited), Art (Place/Region), Region, Zwischenstopp-Eignung und Freitextsuche.");
 
@@ -48,6 +49,7 @@ public static class PlaceEndpoints
             await db.Places.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id) is { } place
                 ? Results.Ok(PlaceResponse.From(place))
                 : Results.NotFound())
+        .WithName("GetPlace")
         .WithSummary("Einen Eintrag abrufen");
 
         group.MapPost("/", async (JourneyDbContext db, CreatePlaceRequest request) =>
@@ -87,6 +89,7 @@ public static class PlaceEndpoints
 
             return Results.Created($"/api/places/{place.Id}", PlaceResponse.From(place));
         })
+        .WithName("CreatePlace")
         .WithSummary("Neuen Ort oder neue Region anlegen");
 
         group.MapPut("/{id:guid}", async (JourneyDbContext db, Guid id, UpdatePlaceRequest request) =>
@@ -121,6 +124,7 @@ public static class PlaceEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(PlaceResponse.From(place));
         })
+        .WithName("UpdatePlace")
         .WithSummary("Eintrag aktualisieren");
 
         group.MapPost("/{id:guid}/visit", async (JourneyDbContext db, Guid id, MarkVisitedRequest request) =>
@@ -143,6 +147,7 @@ public static class PlaceEndpoints
             await db.SaveChangesAsync();
             return Results.Ok(PlaceResponse.From(place));
         })
+        .WithName("MarkPlaceVisited")
         .WithSummary("Eintrag als besucht markieren");
 
         group.MapDelete("/{id:guid}", async (JourneyDbContext db, Guid id) =>
@@ -150,6 +155,7 @@ public static class PlaceEndpoints
             var deleted = await db.Places.Where(p => p.Id == id).ExecuteDeleteAsync();
             return deleted > 0 ? Results.NoContent() : Results.NotFound();
         })
+        .WithName("DeletePlace")
         .WithSummary("Eintrag löschen");
 
         app.MapGet("/api/regions", async (JourneyDbContext db) =>
@@ -163,6 +169,7 @@ public static class PlaceEndpoints
             return Results.Ok(regions);
         })
         .WithTags("Places")
+        .WithName("ListRegions")
         .WithSummary("Alle erfassten Regionsnamen");
 
         return app;

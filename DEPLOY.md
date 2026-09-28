@@ -65,11 +65,23 @@ Damit ist die App unter `https://<ct-name>.<tailnet>.ts.net` für alle Geräte i
     --header "X-Api-Key: <dein-key>"
   ```
 
-- **Wichtig:** Gehostete Dienste wie ChatGPT (Custom Actions) laufen außerhalb des Tailnets und erreichen die App so **nicht**. Wenn das gewünscht ist, kann die App gezielt öffentlich freigegeben werden – dann ist der API-Key Pflicht:
+- **ChatGPT (Custom GPT mit Actions):** ChatGPT läuft außerhalb des Tailnets und braucht deshalb einen öffentlichen Zugang. Der API-Key ist dann Pflicht.
 
-  ```bash
-  tailscale funnel --bg 8080
-  ```
+  1. App per Funnel öffentlich freigeben und die öffentliche URL in die `.env` eintragen, damit sie im OpenAPI-Schema steht:
+
+     ```bash
+     tailscale funnel --bg 8080
+     echo "MYJOURNEY_PUBLIC_URL=https://<ct-name>.<tailnet>.ts.net" >> .env
+     docker compose up -d
+     ```
+
+  2. In ChatGPT einen eigenen GPT anlegen (Erkunden → GPT erstellen → Konfigurieren) und unter **Actions → Schema importieren** die URL `https://<ct-name>.<tailnet>.ts.net/openapi/v1.json` angeben.
+
+  3. Als Authentifizierung **API Key** mit Typ **Bearer** wählen und den `MYJOURNEY_API_KEY` aus der `.env` eintragen (die App akzeptiert den Key als `Authorization: Bearer …`).
+
+  4. Testen, z. B. mit „Welche Orte stehen auf meiner Wunschliste?" – ChatGPT ruft dann `ListPlaces` auf.
+
+  Hinweis: Der eigene MCP-Connector von ChatGPT (Einstellungen → Connectors) unterstützt nur OAuth oder keine Authentifizierung und kann den API-Key nicht mitschicken – deshalb der Weg über Actions.
 
 ## 6. Betrieb
 
