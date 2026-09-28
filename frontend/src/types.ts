@@ -56,8 +56,10 @@ export interface Trip {
 export interface ImportResult {
   total: number
   imported: number
+  updated: number
   skipped: number
   importedNames: string[]
+  updatedNames: string[]
   skippedNames: string[]
 }
 
