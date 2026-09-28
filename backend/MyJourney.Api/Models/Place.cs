@@ -13,6 +13,14 @@ public enum PlaceStatus
     Visited = 1,
 }
 
+/// <summary>Übernachtungsmöglichkeit am Ort: Wohnmobil-Stellplatz, Campingplatz oder keine.</summary>
+public enum OvernightType
+{
+    None = 0,
+    Stellplatz = 1,
+    Campingplatz = 2,
+}
+
 public class Place
 {
     public Guid Id { get; set; }
@@ -41,6 +49,8 @@ public class Place
 
     /// <summary>Eignet sich als Zwischenstopp auf einer längeren Reise.</summary>
     public bool IsStopoverCandidate { get; set; }
+
+    public OvernightType Overnight { get; set; } = OvernightType.None;
 
     public DateTime CreatedAt { get; set; }
 

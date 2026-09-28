@@ -337,6 +337,13 @@ onMounted(loadPlaces)
           />
         </template>
       </Column>
+      <Column field="overnight" header="Übernachtung" sortable>
+        <template #body="{ data }">
+          <Tag v-if="data.overnight === 'Stellplatz'" value="Stellplatz" severity="info" />
+          <Tag v-else-if="data.overnight === 'Campingplatz'" value="Campingplatz" severity="success" />
+          <span v-else class="text-muted-color">–</span>
+        </template>
+      </Column>
       <Column field="isStopoverCandidate" header="Zwischenstopp" sortable>
         <template #body="{ data }">
           <i v-if="data.isStopoverCandidate" class="pi pi-flag text-amber-500" v-tooltip.top="'Als Zwischenstopp geeignet'" />
