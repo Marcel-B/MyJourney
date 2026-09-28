@@ -2,6 +2,19 @@
 
 Die App läuft als ein einzelner Docker-Container: Das .NET-Backend liefert das gebaute Vue-Frontend gleich mit aus (Port 8080). Erreichbar gemacht wird sie ausschließlich über Tailscale – es muss kein Port ins Internet geöffnet werden.
 
+## Schnellstart: alles per Script
+
+Auf dem Proxmox-Host reicht ein Befehl – das Script [`deploy/proxmox-create-ct.sh`](deploy/proxmox-create-ct.sh) legt den CT an (Debian 12, unprivilegiert, nesting/keyctl, TUN-Device für Tailscale, statische IP), installiert Docker samt Compose, klont das Repository, erzeugt einen API-Key und startet die App:
+
+```bash
+wget https://raw.githubusercontent.com/Marcel-B/MyJourney/main/deploy/proxmox-create-ct.sh
+bash proxmox-create-ct.sh
+```
+
+Voreingestellt sind IP `192.168.2.76/24`, Gateway `192.168.2.1`, 2 Cores, 4 GB RAM und 16 GB Disk (der Docker-Build braucht beim ersten Mal etwas Luft; danach läuft die App auch mit weniger RAM). Alle Werte lassen sich per Umgebungsvariable überschreiben, z. B. `CTID=120 IP=192.168.2.80/24 bash proxmox-create-ct.sh`. Am Ende zeigt das Script den API-Key und die Befehle, um Tailscale im CT zu aktivieren (Schritt 4).
+
+Die manuellen Schritte darunter beschreiben, was das Script tut.
+
 ## 1. Container (CT) auf Proxmox anlegen
 
 - Template: Debian 12/13, unprivilegierter CT reicht.
@@ -32,6 +45,8 @@ docker compose up -d --build
 ```
 
 Der Container bindet nur an `127.0.0.1:8080`, die SQLite-Datenbank liegt persistent unter `./data/myjourney.db`. Der API-Key aus `.env` schützt `/api` und `/mcp`.
+
+Soll die App zusätzlich direkt im Heimnetz erreichbar sein (z. B. `http://192.168.2.76:8080`), in `docker-compose.yml` das Port-Mapping auf `"8080:8080"` ändern und `docker compose up -d` erneut ausführen.
 
 ## 4. Über Tailscale erreichbar machen
 
