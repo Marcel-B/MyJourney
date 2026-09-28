@@ -16,7 +16,20 @@ builder.Services.Configure<JsonOptions>(options =>
 builder.Services.AddDbContext<JourneyDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("Journey") ?? "Data Source=myjourney.db"));
 
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApi(options =>
+{
+    // Öffentliche Basis-URL (z. B. die Tailscale-Funnel-Adresse) ins Schema schreiben,
+    // damit z. B. ChatGPT-Actions das Schema direkt importieren können.
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        var publicUrl = builder.Configuration["PublicBaseUrl"];
+        if (!string.IsNullOrWhiteSpace(publicUrl))
+        {
+            document.Servers = [new() { Url = publicUrl.TrimEnd('/') }];
+        }
+        return Task.CompletedTask;
+    });
+});
 
 builder.Services.AddCors(options =>
 {

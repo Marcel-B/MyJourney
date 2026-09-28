@@ -20,12 +20,14 @@ public static class TripEndpoints
                 .ToListAsync();
             return Results.Ok(trips.Select(TripResponse.From).ToList());
         })
+        .WithName("ListTrips")
         .WithSummary("Alle Reisen mit ihren Stopps auflisten");
 
         group.MapGet("/{id:guid}", async (JourneyDbContext db, Guid id) =>
             await LoadTrip(db, id) is { } trip
                 ? Results.Ok(TripResponse.From(trip))
                 : Results.NotFound())
+        .WithName("GetTrip")
         .WithSummary("Eine Reise abrufen");
 
         group.MapPost("/", async (JourneyDbContext db, CreateTripRequest request) =>
@@ -39,6 +41,7 @@ public static class TripEndpoints
             var created = await LoadTrip(db, trip!.Id);
             return Results.Created($"/api/trips/{trip.Id}", TripResponse.From(created!));
         })
+        .WithName("CreateTrip")
         .WithSummary("Reise anlegen")
         .WithDescription("Legt eine Reise mit geordneten Stopps an. Ein Stopp verweist per placeId auf einen erfassten Ort oder bringt einen eigenen Namen und optionale Koordinaten mit.");
 
@@ -55,6 +58,7 @@ public static class TripEndpoints
             var updated = await LoadTrip(db, id);
             return Results.Ok(TripResponse.From(updated!));
         })
+        .WithName("UpdateTrip")
         .WithSummary("Reise aktualisieren (ersetzt auch die Stopps)");
 
         group.MapDelete("/{id:guid}", async (JourneyDbContext db, Guid id) =>
@@ -62,6 +66,7 @@ public static class TripEndpoints
             var deleted = await db.Trips.Where(t => t.Id == id).ExecuteDeleteAsync();
             return deleted > 0 ? Results.NoContent() : Results.NotFound();
         })
+        .WithName("DeleteTrip")
         .WithSummary("Reise löschen");
 
         return app;
