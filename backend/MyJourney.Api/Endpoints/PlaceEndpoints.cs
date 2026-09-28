@@ -80,6 +80,7 @@ public static class PlaceEndpoints
                 Rating = request.Rating,
                 VisitedAt = request.VisitedAt,
                 IsStopoverCandidate = request.IsStopoverCandidate,
+                Overnight = request.Overnight,
                 CreatedAt = now,
                 UpdatedAt = now,
             };
@@ -119,6 +120,7 @@ public static class PlaceEndpoints
             place.Rating = request.Rating;
             place.VisitedAt = request.VisitedAt;
             place.IsStopoverCandidate = request.IsStopoverCandidate;
+            place.Overnight = request.Overnight;
             place.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();

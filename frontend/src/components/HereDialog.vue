@@ -6,7 +6,7 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { createPlace, fetchNearby, markVisited } from '../api/places'
-import type { NearbyPoi, Place } from '../types'
+import type { NearbyPoi, OvernightType, Place } from '../types'
 
 const props = defineProps<{
   visible: boolean
@@ -118,16 +118,23 @@ async function markOwnVisited(place: Place) {
   }
 }
 
+/// OpenStreetMap-Kategorie auf den Übernachtungstyp abbilden.
+function overnightFromCategory(category: string): OvernightType {
+  if (category === 'caravan_site') return 'Stellplatz'
+  if (category === 'camp_site') return 'Campingplatz'
+  return 'None'
+}
+
 async function savePoi(poi: NearbyPoi) {
-  await saveNew(poi.name, poi.latitude, poi.longitude)
+  await saveNew(poi.name, poi.latitude, poi.longitude, overnightFromCategory(poi.category))
 }
 
 async function saveFreeName() {
   if (!freeName.value.trim() || !coords.value) return
-  await saveNew(freeName.value.trim(), coords.value.lat, coords.value.lon)
+  await saveNew(freeName.value.trim(), coords.value.lat, coords.value.lon, 'None')
 }
 
-async function saveNew(name: string, latitude: number, longitude: number) {
+async function saveNew(name: string, latitude: number, longitude: number, overnight: OvernightType) {
   saving.value = true
   try {
     await createPlace({
@@ -142,6 +149,7 @@ async function saveNew(name: string, latitude: number, longitude: number) {
       rating: null,
       visitedAt: today(),
       isStopoverCandidate: false,
+      overnight,
     })
     toast.add({ severity: 'success', summary: 'Hier bin ich', detail: `„${name}" ist als besucht gespeichert.`, life: 4000 })
     emit('saved')

@@ -61,6 +61,17 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<JourneyDbContext>();
     db.Database.EnsureCreated();
+
+    // EnsureCreated legt nur neue Datenbanken an. Später ergänzte Spalten werden
+    // hier idempotent nachgerüstet ("duplicate column" heißt: schon vorhanden).
+    try
+    {
+        db.Database.ExecuteSqlRaw("ALTER TABLE \"Places\" ADD COLUMN \"Overnight\" INTEGER NOT NULL DEFAULT 0");
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
+    {
+        // Spalte existiert bereits.
+    }
 }
 
 app.UseCors();

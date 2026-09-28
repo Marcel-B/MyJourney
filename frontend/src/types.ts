@@ -1,5 +1,6 @@
 export type PlaceKind = 'Place' | 'Region'
 export type PlaceStatus = 'Wishlist' | 'Visited'
+export type OvernightType = 'None' | 'Stellplatz' | 'Campingplatz'
 
 export interface Place {
   id: string
@@ -14,6 +15,7 @@ export interface Place {
   rating: number | null
   visitedAt: string | null
   isStopoverCandidate: boolean
+  overnight: OvernightType
   createdAt: string
   updatedAt: string
 }
@@ -30,6 +32,7 @@ export interface PlaceInput {
   rating: number | null
   visitedAt: string | null
   isStopoverCandidate: boolean
+  overnight: OvernightType
 }
 
 export interface TripStop {

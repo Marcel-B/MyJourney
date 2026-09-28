@@ -9,7 +9,7 @@ import ToggleSwitch from 'primevue/toggleswitch'
 import DatePicker from 'primevue/datepicker'
 import Rating from 'primevue/rating'
 import Button from 'primevue/button'
-import type { Place, PlaceInput } from '../types'
+import type { OvernightType, Place, PlaceInput } from '../types'
 
 const props = defineProps<{
   visible: boolean
@@ -32,6 +32,12 @@ const statusOptions = [
   { label: 'Besucht', value: 'Visited' },
 ]
 
+const overnightOptions = [
+  { label: 'Nichts', value: 'None' },
+  { label: 'Stellplatz', value: 'Stellplatz' },
+  { label: 'Campingplatz', value: 'Campingplatz' },
+]
+
 const name = ref('')
 const kind = ref<'Place' | 'Region'>('Place')
 const status = ref<'Wishlist' | 'Visited'>('Wishlist')
@@ -43,6 +49,7 @@ const notes = ref('')
 const rating = ref<number | undefined>(undefined)
 const visitedAt = ref<Date | null>(null)
 const isStopoverCandidate = ref(false)
+const overnight = ref<OvernightType>('None')
 const submitted = ref(false)
 
 const isEdit = computed(() => props.place !== null)
@@ -64,6 +71,7 @@ watch(
     rating.value = p?.rating ?? undefined
     visitedAt.value = p?.visitedAt ? new Date(p.visitedAt) : null
     isStopoverCandidate.value = p?.isStopoverCandidate ?? false
+    overnight.value = p?.overnight ?? 'None'
   },
 )
 
@@ -90,6 +98,7 @@ function submit() {
     rating: status.value === 'Visited' ? rating.value || null : null,
     visitedAt: status.value === 'Visited' ? toDateOnly(visitedAt.value) : null,
     isStopoverCandidate: isStopoverCandidate.value,
+    overnight: overnight.value,
   })
 }
 </script>
@@ -168,6 +177,11 @@ function submit() {
       <div class="flex items-center gap-3">
         <ToggleSwitch v-model="isStopoverCandidate" input-id="place-stopover" />
         <label for="place-stopover" class="text-sm">Eignet sich als Zwischenstopp</label>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-sm font-medium">Übernachtung vor Ort</label>
+        <SelectButton v-model="overnight" :options="overnightOptions" option-label="label" option-value="value" :allow-empty="false" />
       </div>
 
       <div class="flex flex-col gap-1">
