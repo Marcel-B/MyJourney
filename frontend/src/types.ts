@@ -1,0 +1,68 @@
+export type PlaceKind = 'Place' | 'Region'
+export type PlaceStatus = 'Wishlist' | 'Visited'
+
+export interface Place {
+  id: string
+  name: string
+  kind: PlaceKind
+  status: PlaceStatus
+  region: string | null
+  country: string | null
+  latitude: number | null
+  longitude: number | null
+  notes: string | null
+  rating: number | null
+  visitedAt: string | null
+  isStopoverCandidate: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PlaceInput {
+  name: string
+  kind: PlaceKind
+  status: PlaceStatus
+  region: string | null
+  country: string | null
+  latitude: number | null
+  longitude: number | null
+  notes: string | null
+  rating: number | null
+  visitedAt: string | null
+  isStopoverCandidate: boolean
+}
+
+export interface TripStop {
+  id: string
+  order: number
+  placeId: string | null
+  name: string
+  latitude: number | null
+  longitude: number | null
+  notes: string | null
+}
+
+export interface Trip {
+  id: string
+  name: string
+  notes: string | null
+  startDate: string | null
+  endDate: string | null
+  stops: TripStop[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ImportResult {
+  total: number
+  imported: number
+  skipped: number
+  importedNames: string[]
+  skippedNames: string[]
+}
+
+export interface MarkVisitedInput {
+  visitedAt?: string | null
+  rating?: number | null
+  notes?: string | null
+}
