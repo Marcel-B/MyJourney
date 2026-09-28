@@ -2,9 +2,11 @@ namespace MyJourney.Api.Security;
 
 /// <summary>
 /// Schützt /api und /mcp per API-Key (Header "X-Api-Key" oder "Authorization: Bearer ...").
+/// Als Bearer werden auch die per OAuth ausgestellten Access-Tokens akzeptiert.
 /// Sind keine Keys konfiguriert (Security:ApiKeys), ist der Zugriff offen – gedacht für lokale Entwicklung.
 /// </summary>
-public class ApiKeyMiddleware(RequestDelegate next, IConfiguration configuration, ILogger<ApiKeyMiddleware> logger)
+public class ApiKeyMiddleware(
+    RequestDelegate next, IConfiguration configuration, OAuthTokenService tokens, ILogger<ApiKeyMiddleware> logger)
 {
     private static readonly string[] ProtectedPrefixes = ["/api", "/mcp"];
 
@@ -35,10 +37,17 @@ public class ApiKeyMiddleware(RequestDelegate next, IConfiguration configuration
             }
         }
 
-        if (providedKey is null || !_apiKeys.Contains(providedKey))
+        var authorized = providedKey is not null &&
+            (_apiKeys.Contains(providedKey) || tokens.Validate(providedKey, "access") is not null);
+
+        if (!authorized)
         {
             logger.LogWarning("Abgelehnte Anfrage ohne gültigen API-Key auf {Path}", path.Value);
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            // RFC 9728: MCP-Clients finden über diesen Hinweis den OAuth-Einstieg.
+            var baseUrl = Endpoints.OAuthEndpoints.BaseUrl(context, configuration);
+            context.Response.Headers.WWWAuthenticate =
+                $"Bearer resource_metadata=\"{baseUrl}/.well-known/oauth-protected-resource\"";
             await context.Response.WriteAsJsonAsync(new { error = "Ungültiger oder fehlender API-Key." });
             return;
         }
