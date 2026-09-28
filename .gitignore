@@ -1,0 +1,24 @@
+# .NET
+bin/
+obj/
+*.user
+
+# SQLite-Datenbank (wird beim ersten Start erzeugt)
+*.db
+*.db-shm
+*.db-wal
+
+# Node / Vite
+node_modules/
+dist/
+*.local
+
+# Umgebungsvariablen
+.env
+.env.*
+!.env.example
+
+# Editor
+.vscode/
+.idea/
+.DS_Store
