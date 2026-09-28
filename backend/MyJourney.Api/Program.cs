@@ -52,6 +52,7 @@ app.MapOpenApi();
 app.MapScalarApiReference(); // interaktive API-Doku unter /scalar/v1
 
 app.MapPlaceEndpoints();
+app.MapImportEndpoints();
 app.MapMcp("/mcp");
 
 if (File.Exists(Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html")))

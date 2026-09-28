@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { MarkVisitedInput, Place, PlaceInput, PlaceKind, PlaceStatus } from '../types'
+import type { ImportResult, MarkVisitedInput, Place, PlaceInput, PlaceKind, PlaceStatus } from '../types'
 
 const API_KEY_STORAGE = 'myjourney.apiKey'
 
@@ -65,6 +65,13 @@ export async function markVisited(id: string, input: MarkVisitedInput = {}): Pro
 
 export async function deletePlace(id: string): Promise<void> {
   await client.delete(`/api/places/${id}`)
+}
+
+export async function importGooglePlaces(file: File): Promise<ImportResult> {
+  const form = new FormData()
+  form.append('file', file)
+  const { data } = await client.post<ImportResult>('/api/import/google', form)
+  return data
 }
 
 export async function fetchRegions(): Promise<string[]> {

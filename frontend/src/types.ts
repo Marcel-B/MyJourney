@@ -32,6 +32,14 @@ export interface PlaceInput {
   isStopoverCandidate: boolean
 }
 
+export interface ImportResult {
+  total: number
+  imported: number
+  skipped: number
+  importedNames: string[]
+  skippedNames: string[]
+}
+
 export interface MarkVisitedInput {
   visitedAt?: string | null
   rating?: number | null

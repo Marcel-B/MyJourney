@@ -68,6 +68,15 @@ Zusätzlich kann jeder Eintrag als **Zwischenstopp-Kandidat** markiert werden �
 | POST | `/api/places/{id}/visit` | Eintrag als besucht markieren |
 | DELETE | `/api/places/{id}` | Eintrag löschen |
 | GET | `/api/regions` | Alle erfassten Regionsnamen |
+| POST | `/api/import/google` | Google-Takeout-Datei importieren (Multipart-Upload) |
+
+## Google-Maps-Orte importieren
+
+Mit Stern markierte Orte und gespeicherte Listen aus Google Maps lassen sich über den Button **Google-Maps-Import** in der Oberfläche einlesen. Den Export gibt es bei [Google Takeout](https://takeout.google.com):
+
+1. Bei Takeout nur **„Maps (Meine Orte)"** bzw. **„Gespeichert"** auswählen und exportieren.
+2. Im heruntergeladenen Archiv liegt `Gespeicherte Orte.json` (bzw. `Saved Places.json`) mit den Sternorten; gespeicherte Listen (z. B. „Favoriten") liegen als CSV-Dateien bei.
+3. Die Datei in der App hochladen – die Orte landen auf der Wunschliste, Namen die es schon gibt werden übersprungen. Koordinaten und Notizen werden übernommen, soweit im Export enthalten.
 
 ## KI-Zugriff (MCP)
 

@@ -20,7 +20,7 @@ import { isAxiosError } from 'axios'
 import Password from 'primevue/password'
 
 import PlaceDialog from './components/PlaceDialog.vue'
-import { createPlace, deletePlace, fetchPlaces, markVisited, setApiKey, updatePlace } from './api/places'
+import { createPlace, deletePlace, fetchPlaces, importGooglePlaces, markVisited, setApiKey, updatePlace } from './api/places'
 import type { Place, PlaceInput, PlaceStatus } from './types'
 
 const toast = useToast()
@@ -36,6 +36,8 @@ const dialogVisible = ref(false)
 const editingPlace = ref<Place | null>(null)
 const apiKeyDialogVisible = ref(false)
 const apiKeyInput = ref('')
+const importInput = ref<HTMLInputElement | null>(null)
+const importing = ref(false)
 
 const statusFilterOptions = [
   { label: 'Alle', value: 'All' },
@@ -160,6 +162,34 @@ function confirmDelete(place: Place) {
   })
 }
 
+async function onImportFileSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  importing.value = true
+  try {
+    const result = await importGooglePlaces(file)
+    await loadPlaces()
+    toast.add({
+      severity: 'success',
+      summary: 'Import abgeschlossen',
+      detail: `${result.imported} von ${result.total} Orten importiert${result.skipped ? `, ${result.skipped} übersprungen (schon vorhanden)` : ''}.`,
+      life: 6000,
+    })
+  } catch (error) {
+    if (!handleUnauthorized(error)) {
+      const detail = isAxiosError(error) && error.response?.data?.error
+        ? String(error.response.data.error)
+        : errorMessage(error)
+      toast.add({ severity: 'error', summary: 'Import fehlgeschlagen', detail, life: 8000 })
+    }
+  } finally {
+    importing.value = false
+  }
+}
+
 function formatDate(value: string | null): string {
   if (!value) return '–'
   return new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -181,7 +211,19 @@ onMounted(loadPlaces)
         </h1>
         <p class="text-muted-color mt-1 mb-0">Wohnmobil-Ziele sammeln, Besuchtes festhalten, Reisen planen.</p>
       </div>
-      <Button label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
+      <div class="flex gap-2">
+        <Button
+          label="Google-Maps-Import"
+          icon="pi pi-upload"
+          severity="secondary"
+          outlined
+          :loading="importing"
+          v-tooltip.bottom="'Takeout-Export: „Gespeicherte Orte“-JSON oder Listen-CSV'"
+          @click="importInput?.click()"
+        />
+        <Button label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
+      </div>
+      <input ref="importInput" type="file" accept=".json,.csv,.geojson" class="hidden" @change="onImportFileSelected" />
     </header>
 
     <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
