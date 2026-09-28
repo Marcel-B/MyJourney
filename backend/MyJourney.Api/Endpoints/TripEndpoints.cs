@@ -122,8 +122,8 @@ public static class TripEndpoints
         trip.StartDate = request.StartDate;
         trip.EndDate = request.EndDate;
         trip.UpdatedAt = now;
-        trip.Stops.Clear();
-        trip.Stops.AddRange(stops.Select((s, index) => new TripStop
+
+        var newStops = stops.Select((s, index) => new TripStop
         {
             Id = Guid.NewGuid(),
             TripId = trip.Id,
@@ -133,7 +133,18 @@ public static class TripEndpoints
             Latitude = s.Latitude,
             Longitude = s.Longitude,
             Notes = string.IsNullOrWhiteSpace(s.Notes) ? null : s.Notes.Trim(),
-        }));
+        }).ToList();
+
+        if (existing is not null)
+        {
+            // Alte Stopps explizit löschen und neue explizit als hinzugefügt markieren:
+            // per Navigation entdeckte Stopps mit gesetzter Id hielte EF sonst für
+            // bestehende Zeilen (UPDATE statt INSERT -> DbUpdateConcurrencyException).
+            db.TripStops.RemoveRange(trip.Stops);
+            trip.Stops.Clear();
+            db.TripStops.AddRange(newStops);
+        }
+        trip.Stops.AddRange(newStops);
 
         return (trip, null);
     }

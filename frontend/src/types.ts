@@ -42,6 +42,22 @@ export interface TripStop {
   notes: string | null
 }
 
+export interface TripStopInput {
+  placeId?: string | null
+  name?: string | null
+  latitude?: number | null
+  longitude?: number | null
+  notes?: string | null
+}
+
+export interface TripInput {
+  name: string
+  notes?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  stops?: TripStopInput[]
+}
+
 export interface Trip {
   id: string
   name: string
