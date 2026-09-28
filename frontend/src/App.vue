@@ -20,6 +20,7 @@ import { isAxiosError } from 'axios'
 import Password from 'primevue/password'
 
 import MapView from './components/MapView.vue'
+import TripsView from './components/TripsView.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
 import { createPlace, deletePlace, fetchPlaces, fetchTrips, importGooglePlaces, markVisited, setApiKey, updatePlace } from './api/places'
 import type { Place, PlaceInput, PlaceStatus, Trip } from './types'
@@ -40,11 +41,12 @@ const apiKeyInput = ref('')
 const importInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const trips = ref<Trip[]>([])
-const view = ref<'list' | 'map'>('list')
+const view = ref<'list' | 'map' | 'trips'>('list')
 
 const viewOptions = [
   { icon: 'pi pi-list', value: 'list', label: 'Liste' },
   { icon: 'pi pi-map', value: 'map', label: 'Karte' },
+  { icon: 'pi pi-compass', value: 'trips', label: 'Reisen' },
 ]
 
 const statusFilterOptions = [
@@ -279,6 +281,8 @@ onMounted(loadPlaces)
     </section>
 
     <MapView v-if="view === 'map'" :places="places" :trips="trips" />
+
+    <TripsView v-if="view === 'trips'" :trips="trips" :places="places" :loading="loading" @changed="loadPlaces" />
 
     <DataTable
       v-if="view === 'list'"
