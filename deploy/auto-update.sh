@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Beobachtet origin/<Branch> und aktualisiert die App bei neuen Commits:
-# git pull (nur fast-forward) und docker compose up -d --build.
+# git pull (nur fast-forward), Build mit frischen Basis-Images (--pull)
+# und docker compose up -d.
 #
 # Aufruf:
 #   ./auto-update.sh           # Endlosschleife, prüft alle INTERVAL Sekunden
@@ -34,7 +35,9 @@ update_once() {
 
     log "Neuer Stand auf ${BRANCH}: ${local_rev:0:7} -> ${remote_rev:0:7}, aktualisiere …"
     git pull --ff-only origin "$BRANCH"
-    docker compose up -d --build
+    # --pull zieht aktuelle Basis-Images, damit Sicherheitsupdates mitkommen.
+    docker compose build --pull
+    docker compose up -d
     # Alte, ersetzte Image-Schichten aufräumen, damit die Disk nicht vollläuft.
     docker image prune -f >/dev/null
     log "Update auf ${remote_rev:0:7} abgeschlossen."
