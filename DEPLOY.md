@@ -73,6 +73,15 @@ Damit ist die App unter `https://<ct-name>.<tailnet>.ts.net` für alle Geräte i
 
 ## 6. Betrieb
 
-- **Update:** `git pull && docker compose up -d --build`
+- **Update:** `git pull && docker compose up -d --build` – oder automatisch, siehe unten.
+- **Auto-Update:** [`deploy/auto-update.sh`](deploy/auto-update.sh) beobachtet `origin/main` und führt bei neuen Commits selbstständig Pull und Rebuild aus. Als systemd-Dienst einrichten (einmalig im CT):
+
+  ```bash
+  cp /opt/myjourney/deploy/myjourney-autoupdate.service /etc/systemd/system/
+  systemctl daemon-reload
+  systemctl enable --now myjourney-autoupdate
+  ```
+
+  Status und Protokoll: `systemctl status myjourney-autoupdate` bzw. `journalctl -u myjourney-autoupdate -f`. Das Prüfintervall (Standard: 300 s) lässt sich über die Umgebungsvariable `INTERVAL` in der Service-Datei anpassen; `./deploy/auto-update.sh --once` eignet sich alternativ für cron oder einen systemd-Timer.
 - **Logs:** `docker compose logs -f`
 - **Backup:** die Datei `data/myjourney.db` sichern (Container vorher kurz stoppen oder SQLite-Online-Backup nutzen).
