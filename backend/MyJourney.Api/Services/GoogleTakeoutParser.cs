@@ -70,6 +70,7 @@ public static partial class GoogleTakeoutParser
             var (lat, lon) = GetCoordinates(feature);
             result.Add(new ImportedPlaceCandidate(
                 name.Trim(), lat, lon, address,
+                VisitedAt: ParseDate(props),
                 Country: string.IsNullOrWhiteSpace(countryCode) ? null : countryCode.Trim().ToUpperInvariant()));
         }
 
@@ -101,13 +102,7 @@ public static partial class GoogleTakeoutParser
             rating = ratingValue;
         }
 
-        DateOnly? visitedAt = null;
-        if (GetString(props, "date") is { } date &&
-            DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture,
-                System.Globalization.DateTimeStyles.None, out var parsedDate))
-        {
-            visitedAt = DateOnly.FromDateTime(parsedDate.UtcDateTime);
-        }
+        var visitedAt = ParseDate(props);
 
         var reviewText = GetString(props, "review_text_published");
         var notes = string.IsNullOrWhiteSpace(reviewText) ? address : reviewText.Trim();
@@ -118,6 +113,19 @@ public static partial class GoogleTakeoutParser
             Rating: rating,
             VisitedAt: visitedAt,
             Country: string.IsNullOrWhiteSpace(countryCode) ? null : countryCode.Trim().ToUpperInvariant());
+    }
+
+    /// <summary>Liest das "date"-Feld eines Takeout-Features als Datum.</summary>
+    private static DateOnly? ParseDate(JsonElement props)
+    {
+        if (GetString(props, "date") is { } date &&
+            DateTimeOffset.TryParse(date, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var parsed))
+        {
+            return DateOnly.FromDateTime(parsed.UtcDateTime);
+        }
+
+        return null;
     }
 
     private static (double? Lat, double? Lon) GetCoordinates(JsonElement feature)
