@@ -77,6 +77,7 @@ public class GoogleTakeoutParserTests
         Assert.Equal(63.4305, place.Latitude);
         Assert.Equal("NO", place.Country);
         Assert.Null(place.Rating);
+        Assert.Equal(new DateOnly(2024, 3, 10), place.VisitedAt);
     }
 
     [Fact]

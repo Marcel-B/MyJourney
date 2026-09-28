@@ -47,14 +47,21 @@ public static class ImportEndpoints
 
             foreach (var candidate in candidates)
             {
+                // Google-Daten sind besuchte Orte: Bewertung oder Datum aus der Datei markieren "besucht".
+                var marksVisited = candidate.Rating is not null || candidate.VisitedAt is not null;
+
                 var key = candidate.Name.ToLowerInvariant();
                 if (byName.TryGetValue(key, out var existing))
                 {
-                    // Eine Bewertung wertet einen schon vorhandenen Wunschort zu "besucht" auf.
-                    if (candidate.Rating is not null && existing.Status == PlaceStatus.Wishlist)
+                    // Ein vorhandener Eintrag wird aufgewertet: Wunschort -> besucht,
+                    // bzw. ein besuchter Ort ohne Bewertung bekommt seine Bewertung.
+                    var upgrades = marksVisited &&
+                        (existing.Status == PlaceStatus.Wishlist ||
+                         (candidate.Rating is not null && existing.Rating is null));
+                    if (upgrades)
                     {
                         existing.Status = PlaceStatus.Visited;
-                        existing.Rating = candidate.Rating;
+                        existing.Rating ??= candidate.Rating;
                         existing.VisitedAt ??= candidate.VisitedAt;
                         existing.Country ??= candidate.Country;
                         existing.Notes = string.IsNullOrWhiteSpace(existing.Notes)
@@ -75,7 +82,7 @@ public static class ImportEndpoints
                     Id = Guid.NewGuid(),
                     Name = candidate.Name,
                     Kind = PlaceKind.Place,
-                    Status = candidate.Rating is null ? PlaceStatus.Wishlist : PlaceStatus.Visited,
+                    Status = marksVisited ? PlaceStatus.Visited : PlaceStatus.Wishlist,
                     Latitude = candidate.Latitude,
                     Longitude = candidate.Longitude,
                     Notes = candidate.Notes,
@@ -99,7 +106,7 @@ public static class ImportEndpoints
         .DisableAntiforgery()
         .WithTags("Import")
         .WithSummary("Google-Maps-Orte importieren")
-        .WithDescription("Nimmt eine Google-Takeout-Datei entgegen (\"Gespeicherte Orte\"-GeoJSON, \"Bewertungen\"-GeoJSON oder Listen-CSV). Gespeicherte Orte werden als Wunschziele angelegt, bewertete Orte als besucht mit Bewertung; ein vorhandener Wunschort wird durch eine Bewertung zu \"besucht\" aufgewertet. Sonst werden vorhandene Namen übersprungen.");
+        .WithDescription("Nimmt eine Google-Takeout-Datei entgegen (\"Gespeicherte Orte\"-GeoJSON, \"Bewertungen\"-GeoJSON oder Listen-CSV). Google-Orte mit Datum oder Bewertung werden als besucht angelegt (Datum aus der Datei), Listen-CSVs als Wunschziele. Ein vorhandener Eintrag wird durch Bewertung/Datum aufgewertet statt doppelt angelegt; sonst werden vorhandene Namen übersprungen.");
 
         return app;
     }
