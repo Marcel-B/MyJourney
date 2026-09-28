@@ -1,0 +1,15 @@
+[Unit]
+Description=MyJourney Auto-Update (beobachtet origin/main, pullt und baut neu)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/myjourney
+ExecStart=/opt/myjourney/deploy/auto-update.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
