@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (Build & Test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: .NET SDK einrichten
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Abhängigkeiten wiederherstellen
+        run: dotnet restore MyJourney.slnx
+
+      - name: Bauen
+        run: dotnet build MyJourney.slnx -c Release --no-restore
+
+      - name: Testen
+        run: dotnet test MyJourney.slnx -c Release --no-build --verbosity normal
+
+  frontend:
+    name: Frontend (Typecheck & Build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Node einrichten
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Typecheck & Build
+        run: npm run build
+
+  docker:
+    name: Docker-Image (nur Build, kein Push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Buildx einrichten
+        uses: docker/setup-buildx-action@v3
+
+      - name: Image bauen
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: myjourney:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
