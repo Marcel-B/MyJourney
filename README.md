@@ -99,6 +99,7 @@ Das Backend enthält einen MCP-Server unter `/mcp` (Streamable-HTTP-Transport). 
 | `list_visited` | Besuchte Orte mit Datum, Bewertung und Notizen |
 | `list_stopover_candidates` | Orte, die sich als Zwischenstopp eignen |
 | `search_places` | Freitextsuche über alle Einträge |
+| `find_places_nearby` | Erfasste Orte im Umkreis (Standard 20 km), aufsteigend nach Entfernung |
 | `add_wishlist_place` | Neues Wunschziel hinzufügen |
 | `list_trips` | Geplante Reisen mit ihren Stopps auflisten |
 | `create_trip` | Geplante Reise mit geordneten Stopps anlegen |

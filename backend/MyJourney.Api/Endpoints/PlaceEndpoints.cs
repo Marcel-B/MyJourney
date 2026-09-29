@@ -45,6 +45,35 @@ public static class PlaceEndpoints
         .WithSummary("Orte und Regionen auflisten")
         .WithDescription("Filterbar nach Status (Wishlist/Visited), Art (Place/Region), Region, Zwischenstopp-Eignung und Freitextsuche.");
 
+        group.MapGet("/nearby", async (
+            JourneyDbContext db,
+            double lat,
+            double lon,
+            double? radiusKm,
+            PlaceStatus? status,
+            bool? stopoversOnly) =>
+        {
+            if (lat is < -90 or > 90 || lon is < -180 or > 180)
+                return Results.BadRequest(new { error = "Ungültige Koordinaten." });
+
+            var radius = Math.Clamp(radiusKm ?? Services.NearbyPlaces.DefaultRadiusKm, 0.1, Services.NearbyPlaces.MaxRadiusKm);
+
+            var query = db.Places.AsNoTracking()
+                .Where(p => p.Latitude != null && p.Longitude != null);
+            if (status is not null) query = query.Where(p => p.Status == status);
+            if (stopoversOnly == true) query = query.Where(p => p.IsStopoverCandidate);
+
+            var candidates = await query.ToListAsync();
+            var hits = Services.NearbyPlaces.Find(candidates, lat, lon, radius)
+                .Select(h => new NearbyPlaceResponse(PlaceResponse.From(h.Place), h.DistanceKm))
+                .ToList();
+
+            return Results.Ok(hits);
+        })
+        .WithName("ListPlacesNearby")
+        .WithSummary("Erfasste Orte im Umkreis")
+        .WithDescription("Liefert die eigenen erfassten Orte innerhalb eines Radius (Standard 20 km) um einen Punkt, aufsteigend nach Entfernung sortiert. Optional nach Status oder Zwischenstopp-Eignung filterbar.");
+
         group.MapGet("/{id:guid}", async (JourneyDbContext db, Guid id) =>
             await db.Places.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id) is { } place
                 ? Results.Ok(PlaceResponse.From(place))

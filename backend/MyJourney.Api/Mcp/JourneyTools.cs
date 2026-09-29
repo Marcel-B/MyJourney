@@ -101,6 +101,55 @@ public static class JourneyTools
         return PlaceResponse.From(place);
     }
 
+    [McpServerTool(Name = "find_places_nearby")]
+    [Description("Findet erfasste Orte im Umkreis eines Bezugspunkts (Standard 20 km), aufsteigend nach Entfernung sortiert. Der Bezugspunkt kommt entweder als Koordinaten oder als Name eines bereits erfassten Ortes. Ideal, um Zwischenstopps oder Übernachtungsmöglichkeiten entlang einer Route zu finden.")]
+    public static async Task<List<NearbyPlaceResponse>> FindPlacesNearby(
+        JourneyDbContext db,
+        [Description("Breitengrad des Bezugspunkts (alternativ nearPlaceName angeben).")] double? latitude = null,
+        [Description("Längengrad des Bezugspunkts (alternativ nearPlaceName angeben).")] double? longitude = null,
+        [Description("Name eines erfassten Ortes als Bezugspunkt (Teiltreffer genügt), falls keine Koordinaten angegeben sind.")] string? nearPlaceName = null,
+        [Description("Suchradius in Kilometern (Standard 20).")] double radiusKm = Services.NearbyPlaces.DefaultRadiusKm,
+        [Description("true, um nur Zwischenstopp-Kandidaten zu liefern.")] bool stopoversOnly = false,
+        [Description("Optional \"Wishlist\" oder \"Visited\", um nach Status zu filtern.")] PlaceStatus? status = null)
+    {
+        double lat, lon;
+        Guid? centerId = null;
+        if (latitude is not null && longitude is not null)
+        {
+            (lat, lon) = (latitude.Value, longitude.Value);
+        }
+        else if (!string.IsNullOrWhiteSpace(nearPlaceName))
+        {
+            var center = await db.Places.AsNoTracking()
+                .Where(p => p.Latitude != null && p.Longitude != null &&
+                            EF.Functions.Like(p.Name, $"%{nearPlaceName}%"))
+                .OrderBy(p => p.Name.Length)
+                .FirstOrDefaultAsync()
+                ?? throw new ArgumentException($"Kein erfasster Ort mit Koordinaten passt zu \"{nearPlaceName}\".");
+            (lat, lon, centerId) = (center.Latitude!.Value, center.Longitude!.Value, center.Id);
+        }
+        else
+        {
+            throw new ArgumentException("Bitte entweder latitude/longitude oder nearPlaceName angeben.");
+        }
+
+        if (lat is < -90 or > 90 || lon is < -180 or > 180)
+            throw new ArgumentException("Ungültige Koordinaten.");
+
+        var radius = Math.Clamp(radiusKm, 0.1, Services.NearbyPlaces.MaxRadiusKm);
+
+        var query = db.Places.AsNoTracking()
+            .Where(p => p.Latitude != null && p.Longitude != null);
+        if (status is not null) query = query.Where(p => p.Status == status);
+        if (stopoversOnly) query = query.Where(p => p.IsStopoverCandidate);
+
+        var candidates = await query.ToListAsync();
+        return Services.NearbyPlaces.Find(candidates, lat, lon, radius)
+            .Where(h => h.Place.Id != centerId) // der Bezugsort selbst ist kein Treffer
+            .Select(h => new NearbyPlaceResponse(PlaceResponse.From(h.Place), h.DistanceKm))
+            .ToList();
+    }
+
     [McpServerTool(Name = "list_trips")]
     [Description("Listet alle geplanten Reisen mit ihren Stopps in Reihenfolge, inklusive Koordinaten der Stopps.")]
     public static async Task<List<TripResponse>> ListTrips(JourneyDbContext db)

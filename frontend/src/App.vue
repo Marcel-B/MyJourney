@@ -7,7 +7,9 @@ import DataTable from 'primevue/datatable'
 import Dialog from 'primevue/dialog'
 import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
+import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import Select from 'primevue/select'
 import Rating from 'primevue/rating'
 import SelectButton from 'primevue/selectbutton'
 import Tag from 'primevue/tag'
@@ -45,6 +47,18 @@ const trips = ref<Trip[]>([])
 const hereDialogVisible = ref(false)
 const view = ref<'list' | 'map' | 'trips'>('list')
 
+// „In der Nähe“: Orte im Umkreis um einen Bezugspunkt, aufsteigend nach Entfernung.
+interface NearbyCenter {
+  label: string
+  latitude: number
+  longitude: number
+}
+const nearbyActive = ref(false)
+const nearbyRadius = ref(20)
+const nearbyCenter = ref<NearbyCenter | null>(null)
+const nearbyCenterPlaceId = ref<string | null>(null)
+const locating = ref(false)
+
 const viewOptions = [
   { icon: 'pi pi-list', value: 'list', label: 'Liste' },
   { icon: 'pi pi-map', value: 'map', label: 'Karte' },
@@ -61,16 +75,79 @@ const wishlistCount = computed(() => places.value.filter((p) => p.status === 'Wi
 const visitedCount = computed(() => places.value.filter((p) => p.status === 'Visited').length)
 const stopoverCount = computed(() => places.value.filter((p) => p.isStopoverCandidate).length)
 
+const placesWithCoords = computed(() =>
+  places.value
+    .filter((p) => p.latitude !== null && p.longitude !== null)
+    .sort((a, b) => a.name.localeCompare(b.name, 'de')),
+)
+
+// Haversine-Distanz in Kilometern (gleiche Formel wie im Backend).
+function distanceKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const rad = Math.PI / 180
+  const dLat = (lat2 - lat1) * rad
+  const dLon = (lon2 - lon1) * rad
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+const nearbyFilterReady = computed(() => nearbyActive.value && nearbyCenter.value !== null)
+
 const filteredPlaces = computed(() => {
   const term = search.value.trim().toLowerCase()
-  return places.value.filter((p) => {
+  const base = places.value.filter((p) => {
     if (statusFilter.value !== 'All' && p.status !== statusFilter.value) return false
     if (stopoversOnly.value && !p.isStopoverCandidate) return false
     if (!term) return true
     return [p.name, p.region, p.country, p.notes]
       .some((field) => field?.toLowerCase().includes(term))
   })
+
+  const center = nearbyCenter.value
+  if (!nearbyActive.value || !center) return base
+
+  const radius = nearbyRadius.value || 20
+  return base
+    .filter((p) => p.latitude !== null && p.longitude !== null)
+    .map((p) => ({ ...p, distanceKm: distanceKm(center.latitude, center.longitude, p.latitude!, p.longitude!) }))
+    .filter((p) => p.distanceKm <= radius)
+    .sort((a, b) => a.distanceKm - b.distanceKm)
 })
+
+function onCenterPlaceChange(placeId: string | null) {
+  const place = placeId ? places.value.find((p) => p.id === placeId) : null
+  nearbyCenter.value = place && place.latitude !== null && place.longitude !== null
+    ? { label: place.name, latitude: place.latitude, longitude: place.longitude }
+    : null
+}
+
+function useMyLocation() {
+  if (!navigator.geolocation) {
+    toast.add({ severity: 'warn', summary: 'Standort nicht verfügbar', detail: 'Dieser Browser unterstützt keine Standortabfrage.', life: 5000 })
+    return
+  }
+  locating.value = true
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      locating.value = false
+      nearbyCenterPlaceId.value = null
+      nearbyCenter.value = {
+        label: 'Mein Standort',
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      }
+    },
+    () => {
+      locating.value = false
+      toast.add({ severity: 'warn', summary: 'Standort nicht ermittelt', detail: 'Bitte Standortfreigabe im Browser erlauben oder einen Ort als Mittelpunkt wählen.', life: 6000 })
+    },
+    { enableHighAccuracy: true, timeout: 10000 },
+  )
+}
+
+function formatDistance(km: number): string {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1).replace('.', ',')} km`
+}
 
 function errorMessage(error: unknown): string {
   if (isAxiosError(error)) {
@@ -287,7 +364,48 @@ onMounted(loadPlaces)
           <ToggleSwitch v-model="stopoversOnly" input-id="filter-stopover" />
           <label for="filter-stopover" class="text-sm">Nur Zwischenstopps</label>
         </div>
+        <div class="flex items-center gap-2">
+          <ToggleSwitch v-model="nearbyActive" input-id="filter-nearby" />
+          <label for="filter-nearby" class="text-sm">In der Nähe</label>
+        </div>
       </template>
+    </section>
+
+    <section v-if="view === 'list' && nearbyActive" class="flex flex-wrap items-center gap-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-3">
+      <span class="text-sm text-muted-color">Umkreis um</span>
+      <Select
+        v-model="nearbyCenterPlaceId"
+        :options="placesWithCoords"
+        option-label="name"
+        option-value="id"
+        placeholder="Ort wählen …"
+        filter
+        show-clear
+        class="w-60"
+        @update:model-value="onCenterPlaceChange"
+      />
+      <Button
+        label="Mein Standort"
+        icon="pi pi-crosshairs"
+        severity="secondary"
+        outlined
+        :loading="locating"
+        v-tooltip.bottom="'Aktuelle Position des Browsers als Mittelpunkt verwenden'"
+        @click="useMyLocation"
+      />
+      <div class="flex items-center gap-2">
+        <label for="nearby-radius" class="text-sm text-muted-color">Radius</label>
+        <InputNumber
+          v-model="nearbyRadius"
+          input-id="nearby-radius"
+          :min="1"
+          :max="1000"
+          suffix=" km"
+          :input-style="{ width: '6rem' }"
+        />
+      </div>
+      <Tag v-if="nearbyCenter" :value="nearbyCenter.label" icon="pi pi-map-marker" severity="info" />
+      <span v-else class="text-sm text-muted-color">Bitte einen Mittelpunkt wählen – Ort aus der Liste oder eigener Standort.</span>
     </section>
 
     <MapView v-if="view === 'map'" :places="places" :trips="trips" />
@@ -304,12 +422,16 @@ onMounted(loadPlaces)
       paginator
       :rows="10"
       :rows-per-page-options="[10, 25, 50]"
-      sort-field="name"
+      :sort-field="nearbyFilterReady ? 'distanceKm' : 'name'"
       :sort-order="1"
       class="rounded-xl overflow-hidden border border-surface-200 dark:border-surface-700"
     >
       <template #empty>
-        <div class="text-center py-10 text-muted-color">
+        <div v-if="nearbyFilterReady" class="text-center py-10 text-muted-color">
+          <i class="pi pi-map-marker block text-4xl mb-3" />
+          Keine Orte im Umkreis von {{ nearbyRadius }} km um {{ nearbyCenter?.label }}.
+        </div>
+        <div v-else class="text-center py-10 text-muted-color">
           <i class="pi pi-map block text-4xl mb-3" />
           Noch keine Einträge. Leg mit „Neues Ziel" dein erstes Wohnmobil-Ziel an!
         </div>
@@ -321,6 +443,11 @@ onMounted(loadPlaces)
             <i :class="data.kind === 'Region' ? 'pi pi-globe' : 'pi pi-map-marker'" class="text-muted-color" />
             <span class="font-medium">{{ data.name }}</span>
           </div>
+        </template>
+      </Column>
+      <Column v-if="nearbyFilterReady" field="distanceKm" header="Entfernung" sortable>
+        <template #body="{ data }">
+          <span class="font-medium">{{ formatDistance(data.distanceKm) }}</span>
         </template>
       </Column>
       <Column field="region" header="Region" sortable>
