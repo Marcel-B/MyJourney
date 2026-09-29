@@ -1,6 +1,6 @@
 export type PlaceKind = 'Place' | 'Region'
 export type PlaceStatus = 'Wishlist' | 'Visited'
-export type OvernightType = 'None' | 'Stellplatz' | 'Campingplatz'
+export type OvernightType = 'None' | 'Stellplatz' | 'Campingplatz' | 'Frei'
 
 export interface Place {
   id: string

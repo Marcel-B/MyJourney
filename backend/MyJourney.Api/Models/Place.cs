@@ -13,12 +13,15 @@ public enum PlaceStatus
     Visited = 1,
 }
 
-/// <summary>Übernachtungsmöglichkeit am Ort: Wohnmobil-Stellplatz, Campingplatz oder keine.</summary>
+/// <summary>Übernachtungsmöglichkeit am Ort: Wohnmobil-Stellplatz, Campingplatz, frei stehen oder keine.</summary>
 public enum OvernightType
 {
     None = 0,
     Stellplatz = 1,
     Campingplatz = 2,
+
+    /// <summary>Frei stehen (Wildcamping, ohne offiziellen Platz).</summary>
+    Frei = 3,
 }
 
 public class Place
