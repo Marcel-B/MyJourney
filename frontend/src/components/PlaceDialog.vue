@@ -33,9 +33,9 @@ const statusOptions = [
 ]
 
 const overnightOptions = [
-  { label: 'Nichts', value: 'None' },
   { label: 'Stellplatz', value: 'Stellplatz' },
   { label: 'Campingplatz', value: 'Campingplatz' },
+  { label: 'Frei stehen', value: 'Frei' },
 ]
 
 const name = ref('')
@@ -49,7 +49,8 @@ const notes = ref('')
 const rating = ref<number | undefined>(undefined)
 const visitedAt = ref<Date | null>(null)
 const isStopoverCandidate = ref(false)
-const overnight = ref<OvernightType>('None')
+// null = kein Button aktiv; wird beim Speichern als "None" gesendet.
+const overnight = ref<OvernightType | null>(null)
 const submitted = ref(false)
 
 const isEdit = computed(() => props.place !== null)
@@ -71,7 +72,7 @@ watch(
     rating.value = p?.rating ?? undefined
     visitedAt.value = p?.visitedAt ? new Date(p.visitedAt) : null
     isStopoverCandidate.value = p?.isStopoverCandidate ?? false
-    overnight.value = p?.overnight ?? 'None'
+    overnight.value = p && p.overnight !== 'None' ? p.overnight : null
   },
 )
 
@@ -98,7 +99,7 @@ function submit() {
     rating: status.value === 'Visited' ? rating.value || null : null,
     visitedAt: status.value === 'Visited' ? toDateOnly(visitedAt.value) : null,
     isStopoverCandidate: isStopoverCandidate.value,
-    overnight: overnight.value,
+    overnight: overnight.value ?? 'None',
   })
 }
 </script>
@@ -181,7 +182,7 @@ function submit() {
 
       <div class="flex flex-col gap-1">
         <label class="text-sm font-medium">Übernachtung vor Ort</label>
-        <SelectButton v-model="overnight" :options="overnightOptions" option-label="label" option-value="value" :allow-empty="false" />
+        <SelectButton v-model="overnight" :options="overnightOptions" option-label="label" option-value="value" />
       </div>
 
       <div class="flex flex-col gap-1">

@@ -341,6 +341,7 @@ onMounted(loadPlaces)
         <template #body="{ data }">
           <Tag v-if="data.overnight === 'Stellplatz'" value="Stellplatz" severity="info" />
           <Tag v-else-if="data.overnight === 'Campingplatz'" value="Campingplatz" severity="success" />
+          <Tag v-else-if="data.overnight === 'Frei'" value="Frei stehen" severity="warn" />
           <span v-else class="text-muted-color">–</span>
         </template>
       </Column>

@@ -73,7 +73,7 @@ public static class JourneyTools
         [Description("Längengrad.")] double? longitude = null,
         [Description("Notizen, z. B. warum das Ziel interessant ist.")] string? notes = null,
         [Description("true, wenn sich der Ort als Zwischenstopp eignet.")] bool isStopoverCandidate = false,
-        [Description("Übernachtungsmöglichkeit: \"None\", \"Stellplatz\" oder \"Campingplatz\".")] OvernightType overnight = OvernightType.None)
+        [Description("Übernachtungsmöglichkeit: \"None\", \"Stellplatz\", \"Campingplatz\" oder \"Frei\" (frei stehen).")] OvernightType overnight = OvernightType.None)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new ArgumentException("Der Name darf nicht leer sein.", nameof(name));
