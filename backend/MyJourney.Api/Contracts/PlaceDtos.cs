@@ -58,3 +58,6 @@ public record MarkVisitedRequest(DateOnly? VisitedAt = null, int? Rating = null,
 
 /// <summary>Ein benannter Ort aus der Umgebung (OpenStreetMap) für "Hier bin ich".</summary>
 public record NearbyPoi(string Name, double Latitude, double Longitude, string Category, int DistanceMeters);
+
+/// <summary>Ein erfasster Ort mit Entfernung zum Bezugspunkt (Umkreissuche "in der Nähe").</summary>
+public record NearbyPlaceResponse(PlaceResponse Place, double DistanceKm);
