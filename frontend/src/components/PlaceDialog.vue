@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick, onBeforeUnmount } from 'vue'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import Dialog from 'primevue/dialog'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
@@ -52,12 +54,88 @@ const isStopoverCandidate = ref(false)
 // null = kein Button aktiv; wird beim Speichern als "None" gesendet.
 const overnight = ref<OvernightType | null>(null)
 const submitted = ref(false)
+const showMap = ref(false)
+const mapContainer = ref<HTMLDivElement | null>(null)
+
+let map: L.Map | null = null
+let marker: L.CircleMarker | null = null
 
 const isEdit = computed(() => props.place !== null)
+const hasCoordinates = computed(() => latitude.value != null && longitude.value != null)
+
+const statusColors: Record<string, string> = {
+  Wishlist: '#3b82f6',
+  Visited: '#22c55e',
+}
+
+function destroyMap() {
+  map?.remove()
+  map = null
+  marker = null
+}
+
+function renderMarker() {
+  if (!map || latitude.value == null || longitude.value == null) return
+  const latLng: L.LatLngExpression = [latitude.value, longitude.value]
+  const color = statusColors[status.value] ?? '#3b82f6'
+  if (marker) {
+    marker.setLatLng(latLng)
+    marker.setStyle({ color, fillColor: color })
+  } else {
+    marker = L.circleMarker(latLng, {
+      radius: 8,
+      color,
+      fillColor: color,
+      fillOpacity: 0.75,
+      weight: 2,
+    }).addTo(map)
+  }
+  map.setView(latLng, Math.max(map.getZoom(), 12))
+}
+
+async function toggleMap() {
+  showMap.value = !showMap.value
+  if (!showMap.value) {
+    destroyMap()
+    return
+  }
+  await nextTick()
+  if (!mapContainer.value || latitude.value == null || longitude.value == null) return
+  map = L.map(mapContainer.value).setView([latitude.value, longitude.value], 12)
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  }).addTo(map)
+  renderMarker()
+  // Der Dialog animiert noch beim Öffnen; ohne invalidateSize bleiben Kacheln grau.
+  setTimeout(() => map?.invalidateSize(), 150)
+}
+
+function startNavigation() {
+  if (latitude.value == null || longitude.value == null) return
+  const destination = `${latitude.value},${longitude.value}`
+  const url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(destination)}&travelmode=driving`
+  window.open(url, '_blank', 'noopener')
+}
+
+watch([latitude, longitude, status], () => {
+  if (showMap.value && map) {
+    if (latitude.value == null || longitude.value == null) {
+      showMap.value = false
+      destroyMap()
+    } else {
+      renderMarker()
+    }
+  }
+})
+
+onBeforeUnmount(destroyMap)
 
 watch(
   () => props.visible,
   (visible) => {
+    showMap.value = false
+    destroyMap()
     if (!visible) return
     submitted.value = false
     const p = props.place
@@ -162,6 +240,32 @@ function submit() {
             :min="-180" :max="180" locale="de-DE" placeholder="optional"
           />
         </div>
+      </div>
+
+      <div v-if="hasCoordinates" class="flex flex-col gap-2">
+        <div class="flex flex-wrap gap-2">
+          <Button
+            :label="showMap ? 'Karte ausblenden' : 'Karte anzeigen'"
+            :icon="showMap ? 'pi pi-eye-slash' : 'pi pi-map'"
+            severity="secondary"
+            outlined
+            size="small"
+            @click="toggleMap"
+          />
+          <Button
+            label="Navigation starten"
+            icon="pi pi-directions"
+            severity="info"
+            outlined
+            size="small"
+            @click="startNavigation"
+          />
+        </div>
+        <div
+          v-show="showMap"
+          ref="mapContainer"
+          class="h-64 rounded-lg border border-surface-200 dark:border-surface-700 overflow-hidden"
+        />
       </div>
 
       <div v-if="status === 'Visited'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
