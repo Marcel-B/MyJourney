@@ -26,6 +26,7 @@ import TripsView from './components/TripsView.vue'
 import HereDialog from './components/HereDialog.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
 import { createPlace, deletePlace, fetchPlaces, fetchTrips, importGooglePlaces, markVisited, setApiKey, updatePlace } from './api/places'
+import { countryFlag } from './countryFlags'
 import type { Place, PlaceInput, PlaceStatus, Trip } from './types'
 
 const toast = useToast()
@@ -437,12 +438,34 @@ onMounted(loadPlaces)
         </div>
       </template>
 
+      <Column field="status" class="w-10">
+        <template #body="{ data }">
+          <i
+            v-if="data.status === 'Visited'"
+            class="pi pi-check-circle text-green-600 dark:text-green-400"
+            v-tooltip.top="'Besucht'"
+          />
+          <i v-else class="pi pi-heart text-primary" v-tooltip.top="'Wunschliste'" />
+        </template>
+      </Column>
       <Column field="name" header="Name" sortable>
         <template #body="{ data }">
           <div class="flex items-center gap-2">
             <i :class="data.kind === 'Region' ? 'pi pi-globe' : 'pi pi-map-marker'" class="text-muted-color" />
-            <span class="font-medium">{{ data.name }}</span>
+            <div>
+              <div class="font-medium">{{ data.name }}</div>
+              <div v-if="data.region" class="text-xs text-muted-color">{{ data.region }}</div>
+            </div>
           </div>
+        </template>
+      </Column>
+      <Column field="country" class="w-12">
+        <template #body="{ data }">
+          <span v-if="countryFlag(data.country)" class="text-xl leading-none" v-tooltip.top="data.country">
+            {{ countryFlag(data.country) }}
+          </span>
+          <span v-else-if="data.country" class="text-sm text-muted-color">{{ data.country }}</span>
+          <span v-else class="text-muted-color">–</span>
         </template>
       </Column>
       <Column v-if="nearbyFilterReady" field="distanceKm" header="Entfernung" sortable>
@@ -450,29 +473,21 @@ onMounted(loadPlaces)
           <span class="font-medium">{{ formatDistance(data.distanceKm) }}</span>
         </template>
       </Column>
-      <Column field="region" header="Region" sortable>
-        <template #body="{ data }">{{ data.region ?? '–' }}</template>
-      </Column>
-      <Column field="country" header="Land" sortable>
-        <template #body="{ data }">{{ data.country ?? '–' }}</template>
-      </Column>
-      <Column field="status" header="Status" sortable>
-        <template #body="{ data }">
-          <Tag
-            :value="data.status === 'Visited' ? 'Besucht' : 'Wunschliste'"
-            :severity="data.status === 'Visited' ? 'success' : 'info'"
-          />
+      <Column field="overnight" sortable>
+        <template #header>
+          <i class="pi pi-moon" v-tooltip.top="'Übernachtung'" />
         </template>
-      </Column>
-      <Column field="overnight" header="Übernachtung" sortable>
         <template #body="{ data }">
-          <Tag v-if="data.overnight === 'Stellplatz'" value="Stellplatz" severity="info" />
-          <Tag v-else-if="data.overnight === 'Campingplatz'" value="Campingplatz" severity="success" />
-          <Tag v-else-if="data.overnight === 'Frei'" value="Frei stehen" severity="warn" />
+          <Tag v-if="data.overnight === 'Stellplatz'" value="SP" severity="info" v-tooltip.top="'Stellplatz'" />
+          <Tag v-else-if="data.overnight === 'Campingplatz'" value="CP" severity="success" v-tooltip.top="'Campingplatz'" />
+          <Tag v-else-if="data.overnight === 'Frei'" value="Frei" severity="warn" v-tooltip.top="'Frei stehen'" />
           <span v-else class="text-muted-color">–</span>
         </template>
       </Column>
-      <Column field="isStopoverCandidate" header="Zwischenstopp" sortable>
+      <Column field="isStopoverCandidate" sortable>
+        <template #header>
+          <i class="pi pi-flag" v-tooltip.top="'Zwischenstopp'" />
+        </template>
         <template #body="{ data }">
           <i v-if="data.isStopoverCandidate" class="pi pi-flag text-amber-500" v-tooltip.top="'Als Zwischenstopp geeignet'" />
           <span v-else class="text-muted-color">–</span>
