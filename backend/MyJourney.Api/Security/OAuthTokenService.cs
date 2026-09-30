@@ -29,6 +29,15 @@ public class OAuthTokenService
             .Select(k => SHA256.HashData(Encoding.UTF8.GetBytes("MyJourney.OAuth.v1:" + k)))
             .ToList();
 
+        // Der Passwort-Hash des festen Logins dient ebenfalls als Schlüsselmaterial:
+        // Login-Sessions überleben so Neustarts auch ohne API-Keys, und ein
+        // Passwortwechsel macht alte Sessions ungültig.
+        var passwordHash = configuration["Security:Login:PasswordHash"];
+        if (!string.IsNullOrWhiteSpace(passwordHash))
+        {
+            _signingKeys.Add(SHA256.HashData(Encoding.UTF8.GetBytes("MyJourney.Session.v1:" + passwordHash.Trim())));
+        }
+
         // Ohne konfigurierte Keys (lokale Entwicklung) ein zufälliger Prozess-Schlüssel.
         if (_signingKeys.Count == 0)
         {

@@ -25,7 +25,7 @@ import MapView from './components/MapView.vue'
 import TripsView from './components/TripsView.vue'
 import HereDialog from './components/HereDialog.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
-import { createPlace, deletePlace, fetchPlaces, fetchTrips, importGooglePlaces, markVisited, setApiKey, updatePlace } from './api/places'
+import { createPlace, deletePlace, fetchAuthSession, fetchPlaces, fetchTrips, importGooglePlaces, login, logout, markVisited, setApiKey, updatePlace } from './api/places'
 import { countryFlag } from './countryFlags'
 import type { Place, PlaceInput, PlaceStatus, Trip } from './types'
 
@@ -42,6 +42,15 @@ const dialogVisible = ref(false)
 const editingPlace = ref<Place | null>(null)
 const apiKeyDialogVisible = ref(false)
 const apiKeyInput = ref('')
+
+// Fester Login: ist einer konfiguriert, zeigt die App statt des Inhalts eine
+// Login-Maske; die Session selbst steckt in einem HttpOnly-Cookie.
+const loginConfigured = ref(false)
+const loginRequired = ref(false)
+const loginUsername = ref('')
+const loginPassword = ref('')
+const loginError = ref('')
+const loggingIn = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const trips = ref<Trip[]>([])
@@ -159,13 +168,50 @@ function errorMessage(error: unknown): string {
   return 'Unerwarteter Fehler.'
 }
 
-// Bei 401 den Key-Dialog öffnen statt nur einen Fehler-Toast zu zeigen.
+// Bei 401 die Login-Maske (bzw. ohne konfigurierten Login den Key-Dialog)
+// öffnen statt nur einen Fehler-Toast zu zeigen.
 function handleUnauthorized(error: unknown): boolean {
   if (isAxiosError(error) && error.response?.status === 401) {
-    apiKeyDialogVisible.value = true
+    if (loginConfigured.value) {
+      loginRequired.value = true
+    } else {
+      apiKeyDialogVisible.value = true
+    }
     return true
   }
   return false
+}
+
+async function submitLogin() {
+  if (!loginUsername.value.trim() || !loginPassword.value) return
+  loggingIn.value = true
+  loginError.value = ''
+  try {
+    await login(loginUsername.value.trim(), loginPassword.value)
+    loginRequired.value = false
+    loginPassword.value = ''
+    await loadPlaces()
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 401) {
+      loginError.value = 'Benutzername oder Passwort stimmt nicht.'
+    } else if (isAxiosError(error) && error.response?.status === 429) {
+      loginError.value = 'Zu viele Versuche – bitte eine Minute warten.'
+    } else {
+      loginError.value = errorMessage(error)
+    }
+  } finally {
+    loggingIn.value = false
+  }
+}
+
+async function doLogout() {
+  try {
+    await logout()
+  } catch {
+    // Auch wenn der Aufruf scheitert: zurück zur Login-Maske.
+  }
+  loginPassword.value = ''
+  loginRequired.value = true
 }
 
 function saveApiKey() {
@@ -286,14 +332,63 @@ function formatDate(value: string | null): string {
   return new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
-onMounted(loadPlaces)
+onMounted(async () => {
+  try {
+    const session = await fetchAuthSession()
+    loginConfigured.value = session.loginConfigured
+    if (session.loginConfigured && !session.authenticated) {
+      loginRequired.value = true
+      return
+    }
+  } catch {
+    // Session-Endpoint nicht erreichbar (z. B. älteres Backend) – normal weiterladen.
+  }
+  await loadPlaces()
+})
 </script>
 
 <template>
   <Toast position="top-right" />
   <ConfirmDialog />
 
-  <div class="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-6">
+  <div v-if="loginRequired" class="min-h-screen grid place-items-center px-4">
+    <form
+      class="w-full max-w-sm rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-8 flex flex-col gap-4"
+      @submit.prevent="submitLogin"
+    >
+      <div class="text-center">
+        <i class="pi pi-compass text-primary" style="font-size: 2.5rem" />
+        <h1 class="text-2xl font-bold mt-2 mb-1">MyJourney</h1>
+        <p class="text-sm text-muted-color m-0">Bitte anmelden, um deine Reisen zu sehen.</p>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label for="login-username" class="text-sm">Benutzername</label>
+        <InputText id="login-username" v-model="loginUsername" autocomplete="username" autofocus class="w-full" />
+      </div>
+      <div class="flex flex-col gap-1">
+        <label for="login-password" class="text-sm">Passwort</label>
+        <Password
+          v-model="loginPassword"
+          input-id="login-password"
+          :feedback="false"
+          toggle-mask
+          input-class="w-full"
+          class="w-full"
+          :input-props="{ autocomplete: 'current-password' }"
+        />
+      </div>
+      <p v-if="loginError" class="text-sm text-red-600 dark:text-red-400 m-0">{{ loginError }}</p>
+      <Button
+        type="submit"
+        label="Anmelden"
+        icon="pi pi-sign-in"
+        :loading="loggingIn"
+        :disabled="!loginUsername.trim() || !loginPassword"
+      />
+    </form>
+  </div>
+
+  <div v-else class="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-6">
     <header class="flex flex-wrap items-center justify-between gap-4">
       <div>
         <h1 class="text-3xl font-bold flex items-center gap-2 m-0">
@@ -321,6 +416,15 @@ onMounted(loadPlaces)
           @click="hereDialogVisible = true"
         />
         <Button label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
+        <Button
+          v-if="loginConfigured"
+          icon="pi pi-sign-out"
+          severity="secondary"
+          text
+          rounded
+          v-tooltip.bottom="'Abmelden'"
+          @click="doLogout"
+        />
       </div>
       <input ref="importInput" type="file" accept=".json,.csv,.geojson" class="hidden" @change="onImportFileSelected" />
     </header>
