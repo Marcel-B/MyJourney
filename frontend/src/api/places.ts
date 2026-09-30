@@ -102,3 +102,23 @@ export async function fetchNearby(lat: number, lon: number, radius = 400): Promi
   const { data } = await client.get<NearbyPoi[]>('/api/nearby', { params: { lat, lon, radius } })
   return data
 }
+
+// Fester Login: die Session läuft über ein HttpOnly-Cookie, das der Browser
+// bei Same-Origin-Anfragen automatisch mitschickt.
+export interface AuthSession {
+  loginConfigured: boolean
+  authenticated: boolean
+}
+
+export async function fetchAuthSession(): Promise<AuthSession> {
+  const { data } = await client.get<AuthSession>('/api/auth/session')
+  return data
+}
+
+export async function login(username: string, password: string): Promise<void> {
+  await client.post('/api/auth/login', { username, password })
+}
+
+export async function logout(): Promise<void> {
+  await client.post('/api/auth/logout')
+}

@@ -46,6 +46,19 @@ docker compose up -d --build
 
 Der Container bindet nur an `127.0.0.1:8080`, die SQLite-Datenbank liegt persistent unter `./data/myjourney.db`. Der API-Key aus `.env` schützt `/api` und `/mcp`.
 
+### Login für die Web-Oberfläche (optional)
+
+Statt den API-Key in den Browser einzutragen, kann die Oberfläche eine richtige Login-Maske bekommen: ein fester Benutzer, konfiguriert per Umgebungsvariable. Das Passwort wird nur als PBKDF2-Hash gespeichert. Hash erzeugen und beides in die `.env` eintragen:
+
+```bash
+docker compose run --rm --no-deps myjourney hash-password 'dein-passwort'
+echo "MYJOURNEY_LOGIN_USER=marcel" >> .env
+echo "MYJOURNEY_LOGIN_PASSWORD_HASH=<ausgabe-von-oben>" >> .env
+docker compose up -d
+```
+
+Danach zeigt die App beim Öffnen eine Anmeldemaske; die Sitzung läuft über ein HttpOnly-Cookie mit 30 Tagen Laufzeit, der Login ist auf 5 Versuche pro Minute und IP begrenzt. Der API-Key gilt unverändert weiter – KI-Assistenten und Skripte melden sich nicht über den Login an. Ein Passwortwechsel (neuer Hash in der `.env`) meldet alle offenen Browser-Sitzungen ab.
+
 Soll die App zusätzlich direkt im Heimnetz erreichbar sein (z. B. `http://192.168.2.76:8080`), in `docker-compose.yml` das Port-Mapping auf `"8080:8080"` ändern und `docker compose up -d` erneut ausführen.
 
 ## 4. Über Tailscale erreichbar machen

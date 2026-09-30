@@ -2,13 +2,19 @@ namespace MyJourney.Api.Security;
 
 /// <summary>
 /// Schützt /api und /mcp per API-Key (Header "X-Api-Key" oder "Authorization: Bearer ...").
-/// Als Bearer werden auch die per OAuth ausgestellten Access-Tokens akzeptiert.
-/// Sind keine Keys konfiguriert (Security:ApiKeys), ist der Zugriff offen – gedacht für lokale Entwicklung.
+/// Als Bearer werden auch die per OAuth ausgestellten Access-Tokens akzeptiert, und für die
+/// Web-Oberfläche zusätzlich die Cookie-Session aus dem festen Login (/api/auth/login).
+/// Ist weder ein API-Key noch ein Login konfiguriert, ist der Zugriff offen – gedacht für lokale Entwicklung.
 /// </summary>
 public class ApiKeyMiddleware(
-    RequestDelegate next, IConfiguration configuration, OAuthTokenService tokens, ILogger<ApiKeyMiddleware> logger)
+    RequestDelegate next, IConfiguration configuration, OAuthTokenService tokens, LoginService login,
+    ILogger<ApiKeyMiddleware> logger)
 {
     private static readonly string[] ProtectedPrefixes = ["/api", "/mcp"];
+
+    // Login und Session-Abfrage müssen ohne Key erreichbar sein; der Login-Endpoint
+    // selbst ist per Rate-Limit geschützt.
+    private static readonly string[] ExemptPrefixes = ["/api/auth"];
 
     private readonly HashSet<string> _apiKeys = configuration
         .GetSection("Security:ApiKeys")
@@ -19,9 +25,10 @@ public class ApiKeyMiddleware(
     public async Task InvokeAsync(HttpContext context)
     {
         var path = context.Request.Path;
-        var isProtected = ProtectedPrefixes.Any(p => path.StartsWithSegments(p));
+        var isProtected = ProtectedPrefixes.Any(p => path.StartsWithSegments(p)) &&
+            !ExemptPrefixes.Any(p => path.StartsWithSegments(p));
 
-        if (!isProtected || _apiKeys.Count == 0)
+        if (!isProtected || (_apiKeys.Count == 0 && !login.IsConfigured))
         {
             await next(context);
             return;
@@ -39,6 +46,13 @@ public class ApiKeyMiddleware(
 
         var authorized = providedKey is not null &&
             (_apiKeys.Contains(providedKey) || tokens.Validate(providedKey, "access") is not null);
+
+        // Web-Oberfläche: Cookie-Session aus dem festen Login zählt ebenfalls.
+        if (!authorized)
+        {
+            var sessionCookie = context.Request.Cookies[Endpoints.AuthEndpoints.SessionCookie];
+            authorized = sessionCookie is not null && tokens.Validate(sessionCookie, "session") is not null;
+        }
 
         if (!authorized)
         {
