@@ -69,6 +69,10 @@ Zusätzlich kann jeder Eintrag als **Zwischenstopp-Kandidat** markiert werden �
 | DELETE | `/api/places/{id}` | Eintrag löschen |
 | GET | `/api/regions` | Alle erfassten Regionsnamen |
 | POST | `/api/import/google` | Google-Takeout-Datei importieren (Multipart-Upload) |
+| POST | `/api/import/trip` | Reise im Schema `myjourney-trip` importieren (z. B. von ChatGPT erzeugt) |
+| GET | `/api/exchange/export` | Bestand (Orte + Reisen) als JSON-Datei herunterladen |
+| GET | `/api/exchange/trip-schema` | JSON Schema für den Reise-Import |
+| GET | `/api/exchange/chatgpt-prompt` | Fertiger Prompt-Text (inkl. Schema) für ChatGPT |
 | GET | `/api/trips` | Reisen mit ihren Stopps auflisten |
 | GET | `/api/trips/{id}` | Eine Reise abrufen |
 | POST | `/api/trips` | Reise mit geordneten Stopps anlegen |
@@ -88,6 +92,16 @@ Mit Stern markierte Orte und gespeicherte Listen aus Google Maps lassen sich üb
 1. Bei Takeout nur **„Maps (Meine Orte)"** bzw. **„Gespeichert"** auswählen und exportieren.
 2. Im heruntergeladenen Archiv liegt `Gespeicherte Orte.json` (bzw. `Saved Places.json`) mit den Sternorten; gespeicherte Listen (z. B. „Favoriten") liegen als CSV-Dateien bei.
 3. Die Datei in der App hochladen – die Orte landen auf der Wunschliste, Namen die es schon gibt werden übersprungen. Koordinaten und Notizen werden übernommen, soweit im Export enthalten.
+
+## Reise mit ChatGPT planen (Datei-Import)
+
+Für KI-Assistenten ohne API- oder MCP-Zugriff (z. B. ChatGPT im Browser) gibt es einen dateibasierten Weg über den Button **ChatGPT** in der Oberfläche:
+
+1. **Bestand herunterladen** – `myjourney-bestand.json` enthält alle Orte und Reisen und wird ChatGPT als Anhang mitgegeben, damit es Wunschziele und Besuchtes kennt.
+2. **Prompt kopieren** – der Text erklärt ChatGPT das Dateiformat (Schema `myjourney-trip`, Version 1) und bittet am Ende der Planung um eine JSON-Datei.
+3. **Fertige Reise importieren** – die von ChatGPT erzeugte Datei in der App hochladen.
+
+Beim Import werden Stopps per `placeId` oder Namensgleichheit mit vorhandenen Orten verknüpft; unbekannte Stopps landen automatisch als neue Wunschziele in der Ortsliste (inkl. Koordinaten, Land, Region und Übernachtungsart). Reine Routenpunkte wie eine Fähre markiert ChatGPT mit `"saveAsPlace": false` – sie bleiben freie Stopps der Reise.
 
 ## KI-Zugriff (MCP)
 
