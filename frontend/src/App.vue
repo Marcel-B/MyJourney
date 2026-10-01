@@ -21,6 +21,7 @@ import { isAxiosError } from 'axios'
 
 import Password from 'primevue/password'
 
+import ChatGptDialog from './components/ChatGptDialog.vue'
 import MapView from './components/MapView.vue'
 import TripsView from './components/TripsView.vue'
 import HereDialog from './components/HereDialog.vue'
@@ -55,6 +56,7 @@ const importInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const trips = ref<Trip[]>([])
 const hereDialogVisible = ref(false)
+const chatGptDialogVisible = ref(false)
 const view = ref<'list' | 'map' | 'trips'>('list')
 
 // „In der Nähe“: Orte im Umkreis um einen Bezugspunkt, aufsteigend nach Entfernung.
@@ -327,6 +329,12 @@ async function onImportFileSelected(event: Event) {
   }
 }
 
+// Nach dem ChatGPT-Import direkt zur Reisen-Ansicht wechseln.
+async function onTripImported() {
+  await loadPlaces()
+  view.value = 'trips'
+}
+
 function formatDate(value: string | null): string {
   if (!value) return '–'
   return new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -406,6 +414,14 @@ onMounted(async () => {
           :loading="importing"
           v-tooltip.bottom="'Takeout-Export: „Gespeicherte Orte“-JSON oder Listen-CSV'"
           @click="importInput?.click()"
+        />
+        <Button
+          label="ChatGPT"
+          icon="pi pi-comments"
+          severity="secondary"
+          outlined
+          v-tooltip.bottom="'Reise mit ChatGPT planen und als Datei importieren'"
+          @click="chatGptDialogVisible = true"
         />
         <Button
           label="Hier bin ich"
@@ -518,6 +534,8 @@ onMounted(async () => {
     <TripsView v-if="view === 'trips'" :trips="trips" :places="places" :loading="loading" @changed="loadPlaces" />
 
     <HereDialog v-model:visible="hereDialogVisible" :places="places" @saved="loadPlaces" />
+
+    <ChatGptDialog v-model:visible="chatGptDialogVisible" @imported="onTripImported" />
 
     <DataTable
       v-if="view === 'list'"

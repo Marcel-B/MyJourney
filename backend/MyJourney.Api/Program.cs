@@ -117,6 +117,7 @@ app.MapAuthEndpoints();
 app.MapPlaceEndpoints();
 app.MapTripEndpoints();
 app.MapImportEndpoints();
+app.MapExchangeEndpoints();
 app.MapOAuthEndpoints();
 app.MapNearbyEndpoints();
 app.MapMcp("/mcp");

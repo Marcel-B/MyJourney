@@ -82,6 +82,13 @@ export interface ImportResult {
   skippedNames: string[]
 }
 
+export interface TripImportResult {
+  trip: Trip
+  createdPlaces: string[]
+  linkedPlaces: string[]
+  freeStops: string[]
+}
+
 export interface MarkVisitedInput {
   visitedAt?: string | null
   rating?: number | null

@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ImportResult, MarkVisitedInput, NearbyPoi, Place, PlaceInput, PlaceKind, PlaceStatus, Trip, TripInput } from '../types'
+import type { ImportResult, MarkVisitedInput, NearbyPoi, Place, PlaceInput, PlaceKind, PlaceStatus, Trip, TripImportResult, TripInput } from '../types'
 
 const API_KEY_STORAGE = 'myjourney.apiKey'
 
@@ -71,6 +71,26 @@ export async function importGooglePlaces(file: File): Promise<ImportResult> {
   const form = new FormData()
   form.append('file', file)
   const { data } = await client.post<ImportResult>('/api/import/google', form)
+  return data
+}
+
+// ChatGPT-Austausch: Bestand als Datei holen, Prompt-Text laden,
+// eine von ChatGPT erzeugte "myjourney-trip"-Datei importieren.
+export async function fetchExchangeExport(): Promise<Blob> {
+  const { data } = await client.get<Blob>('/api/exchange/export', { responseType: 'blob' })
+  return data
+}
+
+export async function fetchChatGptPrompt(): Promise<string> {
+  const { data } = await client.get<string>('/api/exchange/chatgpt-prompt', {
+    responseType: 'text',
+    transformResponse: [(raw) => raw],
+  })
+  return data
+}
+
+export async function importTripFile(fileContent: unknown): Promise<TripImportResult> {
+  const { data } = await client.post<TripImportResult>('/api/import/trip', fileContent)
   return data
 }
 
