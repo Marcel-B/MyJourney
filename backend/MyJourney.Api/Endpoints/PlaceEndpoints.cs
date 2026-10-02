@@ -181,9 +181,11 @@ public static class PlaceEndpoints
         .WithName("MarkPlaceVisited")
         .WithSummary("Eintrag als besucht markieren");
 
-        group.MapDelete("/{id:guid}", async (JourneyDbContext db, Guid id) =>
+        group.MapDelete("/{id:guid}", async (JourneyDbContext db, Services.ChangeNotifier notifier, Guid id) =>
         {
+            // ExecuteDelete läuft an SaveChanges vorbei, daher hier selbst signalisieren.
             var deleted = await db.Places.Where(p => p.Id == id).ExecuteDeleteAsync();
+            if (deleted > 0) notifier.NotifyDataChanged();
             return deleted > 0 ? Results.NoContent() : Results.NotFound();
         })
         .WithName("DeletePlace")

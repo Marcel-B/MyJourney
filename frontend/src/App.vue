@@ -30,6 +30,7 @@ import TripsView from './components/TripsView.vue'
 import HereDialog from './components/HereDialog.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
 import { createPlace, deletePlace, fetchAuthSession, fetchPlaces, fetchTrips, importGooglePlaces, login, logout, markVisited, setApiKey, updatePlace } from './api/places'
+import { useLiveUpdates } from './composables/useLiveUpdates'
 import { countryFlag } from './countryFlags'
 import type { Place, PlaceInput, PlaceStatus, Trip } from './types'
 
@@ -71,6 +72,7 @@ const view = ref<'list' | 'map' | 'trips'>('list')
 const actionMenu = ref<InstanceType<typeof Menu> | null>(null)
 const actionMenuItems = computed(() => {
   const items: Record<string, unknown>[] = [
+    { label: 'Aktualisieren', icon: 'pi pi-refresh', command: () => { loadPlaces() } },
     { label: 'Google-Maps-Import', icon: 'pi pi-upload', command: () => importInput.value?.click() },
     { label: 'ChatGPT', icon: 'pi pi-comments', command: () => { chatGptDialogVisible.value = true } },
     { label: 'Hier bin ich', icon: 'pi pi-map-marker', command: () => { hereDialogVisible.value = true } },
@@ -233,6 +235,7 @@ async function submitLogin() {
 }
 
 async function doLogout() {
+  live.stop()
   try {
     await logout()
   } catch {
@@ -255,6 +258,7 @@ async function loadPlaces() {
   try {
     places.value = await fetchPlaces()
     trips.value = await fetchTrips()
+    live.start()
   } catch (error) {
     if (!handleUnauthorized(error)) {
       toast.add({ severity: 'error', summary: 'Laden fehlgeschlagen', detail: errorMessage(error), life: 6000 })
@@ -263,6 +267,21 @@ async function loadPlaces() {
     loading.value = false
   }
 }
+
+// Stilles Neuladen für Live-Updates: ohne Lade-Spinner und ohne Fehler-Toast,
+// damit Änderungen des Partners einfach erscheinen und kurze Verbindungs-
+// aussetzer keine Meldungen stapeln.
+async function reloadPlaces() {
+  try {
+    const [newPlaces, newTrips] = await Promise.all([fetchPlaces(), fetchTrips()])
+    places.value = newPlaces
+    trips.value = newTrips
+  } catch (error) {
+    handleUnauthorized(error)
+  }
+}
+
+const live = useLiveUpdates(reloadPlaces)
 
 function openCreateDialog() {
   editingPlace.value = null
@@ -479,6 +498,16 @@ onMounted(async () => {
           @click="hereDialogVisible = true"
         />
         <Button class="whitespace-nowrap" label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
+        <Button
+          class="hidden md:inline-flex"
+          icon="pi pi-refresh"
+          severity="secondary"
+          text
+          rounded
+          :loading="loading"
+          v-tooltip.bottom="'Daten neu laden'"
+          @click="loadPlaces"
+        />
         <Button
           v-if="loginConfigured"
           class="hidden md:inline-flex"
