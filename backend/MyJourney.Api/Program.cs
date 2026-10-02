@@ -26,8 +26,28 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+var journeyConnectionString = builder.Configuration.GetConnectionString("Journey") ?? "Data Source=myjourney.db";
 builder.Services.AddDbContext<JourneyDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("Journey") ?? "Data Source=myjourney.db"));
+    options.UseSqlite(journeyConnectionString));
+
+// Nextcloud-Backup der Datenbank (bleibt aus, solange nicht konfiguriert – siehe DEPLOY.md).
+var nextcloudOptions = MyJourney.Api.Backup.NextcloudBackupOptions.Load(builder.Configuration);
+builder.Services.AddSingleton(nextcloudOptions);
+// Das Zeitlimit steuert der WebDAV-Client pro Request (NEXTCLOUD_BACKUP_HTTP_TIMEOUT_SECONDS),
+// das 100-Sekunden-Standardlimit des HttpClient darf große Uploads nicht vorzeitig abbrechen.
+builder.Services.AddHttpClient("webdav", client => client.Timeout = Timeout.InfiniteTimeSpan);
+builder.Services.AddSingleton<MyJourney.Api.Backup.IWebDavClient, MyJourney.Api.Backup.HttpWebDavClient>();
+builder.Services.AddSingleton(sp => new MyJourney.Api.Backup.NextcloudBackupRunner(
+    sp.GetRequiredService<MyJourney.Api.Backup.IWebDavClient>(),
+    nextcloudOptions,
+    journeyConnectionString,
+    sp.GetRequiredService<ILogger<MyJourney.Api.Backup.NextcloudBackupRunner>>()));
+builder.Services.AddHostedService(sp => new MyJourney.Api.Backup.NextcloudBackupScheduler(
+    sp.GetRequiredService<MyJourney.Api.Backup.NextcloudBackupRunner>(),
+    sp.GetRequiredService<MyJourney.Api.Services.ChangeNotifier>(),
+    nextcloudOptions,
+    journeyConnectionString,
+    sp.GetRequiredService<ILogger<MyJourney.Api.Backup.NextcloudBackupScheduler>>()));
 
 builder.Services.AddOpenApi(options =>
 {
