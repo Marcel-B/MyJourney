@@ -11,6 +11,10 @@ public class JourneyDbContext(DbContextOptions<JourneyDbContext> options) : DbCo
 
     public DbSet<TripStop> TripStops => Set<TripStop>();
 
+    public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+
+    public DbSet<Invite> Invites => Set<Invite>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Place>(entity =>
@@ -31,6 +35,20 @@ public class JourneyDbContext(DbContextOptions<JourneyDbContext> options) : DbCo
                 .WithOne()
                 .HasForeignKey(s => s.TripId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<UserAccount>(entity =>
+        {
+            entity.Property(u => u.Username).HasMaxLength(100);
+            entity.Property(u => u.PasswordHash).HasMaxLength(500);
+            entity.HasIndex(u => u.Username).IsUnique();
+        });
+
+        modelBuilder.Entity<Invite>(entity =>
+        {
+            entity.Property(i => i.Token).HasMaxLength(100);
+            entity.Property(i => i.UsedByUsername).HasMaxLength(100);
+            entity.HasIndex(i => i.Token).IsUnique();
         });
 
         modelBuilder.Entity<TripStop>(entity =>
