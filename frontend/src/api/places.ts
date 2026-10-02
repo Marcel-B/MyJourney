@@ -3,8 +3,21 @@ import type { ImportResult, MarkVisitedInput, NearbyPoi, Place, PlaceInput, Plac
 
 const API_KEY_STORAGE = 'myjourney.apiKey'
 
+export const apiBaseUrl: string = import.meta.env.VITE_API_BASE_URL ?? ''
+
+// Jede Browser-Instanz bekommt eine zufällige Id und schickt sie bei allen Anfragen mit.
+// Der Live-Stream (/api/events) meldet sie als "origin" zurück, sodass ein Client seine
+// eigenen Änderungen wiedererkennt und nicht unnötig neu lädt.
+export const clientId: string = (() => {
+  try {
+    return crypto.randomUUID()
+  } catch {
+    return `c-${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`
+  }
+})()
+
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '',
+  baseURL: apiBaseUrl,
 })
 
 // Der Key kommt aus dem localStorage (über den Dialog in der App gesetzt)
@@ -12,6 +25,7 @@ const client = axios.create({
 client.interceptors.request.use((config) => {
   const key = getApiKey()
   if (key) config.headers['X-Api-Key'] = key
+  config.headers['X-Client-Id'] = clientId
   return config
 })
 

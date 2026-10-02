@@ -47,6 +47,10 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddSingleton<MyJourney.Api.Security.OAuthTokenService>();
 builder.Services.AddSingleton<MyJourney.Api.Security.LoginService>();
 
+// Live-Updates: verteilt "Daten geändert"-Signale an alle offenen /api/events-Streams.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<MyJourney.Api.Services.ChangeNotifier>();
+
 // Bremst Passwort-Rateversuche auf dem Login aus: 5 Versuche pro Minute und IP.
 builder.Services.AddRateLimiter(options =>
 {
@@ -143,6 +147,7 @@ app.MapImportEndpoints();
 app.MapExchangeEndpoints();
 app.MapOAuthEndpoints();
 app.MapNearbyEndpoints();
+app.MapEventEndpoints();
 app.MapMcp("/mcp");
 
 if (File.Exists(Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html")))

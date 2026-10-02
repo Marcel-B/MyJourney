@@ -78,6 +78,13 @@ Zusätzlich kann jeder Eintrag als **Zwischenstopp-Kandidat** markiert werden �
 | POST | `/api/trips` | Reise mit geordneten Stopps anlegen |
 | PUT | `/api/trips/{id}` | Reise aktualisieren (ersetzt auch die Stopps) |
 | DELETE | `/api/trips/{id}` | Reise löschen |
+| GET | `/api/events` | Live-Updates als Server-Sent Events (siehe unten) |
+
+## Live-Updates zwischen Geräten
+
+Arbeiten mehrere Personen (oder ein KI-Assistent über MCP) auf demselben Datenbestand, bekommen alle offenen Browser und installierten PWAs Änderungen automatisch mit: Das Backend hält unter `/api/events` einen Server-Sent-Events-Stream offen und schickt bei jeder Datenänderung ein Signal, woraufhin die App ihren Bestand still neu lädt. Eigene Änderungen werden dabei über eine Client-Id (`X-Client-Id`-Header) erkannt und lösen kein doppeltes Laden aus.
+
+Kehrt man in die App zurück (Tab-Wechsel, PWA aus dem Hintergrund, Netz wieder da), verbindet sie sich sofort neu und lädt nach längerer Abwesenheit sicherheitshalber einmal nach – falls der Stream im Hintergrund gekappt wurde. Zusätzlich gibt es in der Kopfzeile (Desktop: Pfeil-Icon, mobil: im ⋯-Menü) ein manuelles **Aktualisieren**, da die installierte PWA keinen Browser-Reload hat.
 
 ## Karte und geplante Reisen
 

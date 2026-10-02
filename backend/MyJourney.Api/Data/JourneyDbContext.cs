@@ -3,7 +3,8 @@ using MyJourney.Api.Models;
 
 namespace MyJourney.Api.Data;
 
-public class JourneyDbContext(DbContextOptions<JourneyDbContext> options) : DbContext(options)
+public class JourneyDbContext(DbContextOptions<JourneyDbContext> options, Services.ChangeNotifier? notifier = null)
+    : DbContext(options)
 {
     public DbSet<Place> Places => Set<Place>();
 
@@ -14,6 +15,29 @@ public class JourneyDbContext(DbContextOptions<JourneyDbContext> options) : DbCo
     public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
 
     public DbSet<Invite> Invites => Set<Invite>();
+
+    // Zentrale Stelle für "Daten geändert": jedes Speichern von Reisedaten (egal ob über
+    // REST, MCP oder einen Import) signalisiert den verbundenen Clients, neu zu laden.
+    // Benutzerkonten und Einladungen zählen bewusst nicht dazu.
+    public override int SaveChanges()
+    {
+        var touchesJourneyData = TouchesJourneyData();
+        var result = base.SaveChanges();
+        if (result > 0 && touchesJourneyData) notifier?.NotifyDataChanged();
+        return result;
+    }
+
+    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        var touchesJourneyData = TouchesJourneyData();
+        var result = await base.SaveChangesAsync(cancellationToken);
+        if (result > 0 && touchesJourneyData) notifier?.NotifyDataChanged();
+        return result;
+    }
+
+    private bool TouchesJourneyData() => ChangeTracker.Entries().Any(e =>
+        e.State is EntityState.Added or EntityState.Modified or EntityState.Deleted &&
+        e.Entity is Place or Trip or TripStop);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
