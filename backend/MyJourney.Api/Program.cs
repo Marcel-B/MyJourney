@@ -100,6 +100,29 @@ using (var scope = app.Services.CreateScope())
     {
         // Spalte existiert bereits.
     }
+
+    // Später ergänzte Tabellen ebenso: CREATE TABLE IF NOT EXISTS spiegelt das
+    // EF-Schema (Guid/DateTime als TEXT) und ist auf frischen Datenbanken ein No-op.
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "UserAccounts" (
+            "Id" TEXT NOT NULL CONSTRAINT "PK_UserAccounts" PRIMARY KEY,
+            "Username" TEXT NOT NULL,
+            "PasswordHash" TEXT NOT NULL,
+            "CreatedAt" TEXT NOT NULL
+        )
+        """);
+    db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX IF NOT EXISTS "IX_UserAccounts_Username" ON "UserAccounts" ("Username")""");
+    db.Database.ExecuteSqlRaw("""
+        CREATE TABLE IF NOT EXISTS "Invites" (
+            "Id" TEXT NOT NULL CONSTRAINT "PK_Invites" PRIMARY KEY,
+            "Token" TEXT NOT NULL,
+            "CreatedAt" TEXT NOT NULL,
+            "ExpiresAt" TEXT NOT NULL,
+            "UsedAt" TEXT NULL,
+            "UsedByUsername" TEXT NULL
+        )
+        """);
+    db.Database.ExecuteSqlRaw("""CREATE UNIQUE INDEX IF NOT EXISTS "IX_Invites_Token" ON "Invites" ("Token")""");
 }
 
 app.UseCors();

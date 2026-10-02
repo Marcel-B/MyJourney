@@ -22,6 +22,8 @@ import { isAxiosError } from 'axios'
 import Password from 'primevue/password'
 
 import ChatGptDialog from './components/ChatGptDialog.vue'
+import InviteDialog from './components/InviteDialog.vue'
+import InviteView from './components/InviteView.vue'
 import MapView from './components/MapView.vue'
 import TripsView from './components/TripsView.vue'
 import HereDialog from './components/HereDialog.vue'
@@ -52,6 +54,10 @@ const loginUsername = ref('')
 const loginPassword = ref('')
 const loginError = ref('')
 const loggingIn = ref(false)
+
+// Einladelink: /invite?token=… zeigt statt Login/App die Einlöse-Seite.
+const inviteToken = ref<string | null>(null)
+const inviteDialogVisible = ref(false)
 const importInput = ref<HTMLInputElement | null>(null)
 const importing = ref(false)
 const trips = ref<Trip[]>([])
@@ -340,7 +346,22 @@ function formatDate(value: string | null): string {
   return new Date(value).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
 }
 
+// Nach dem Einlösen der Einladung ist die Session schon gesetzt – zurück zur App.
+async function onInviteAccepted() {
+  inviteToken.value = null
+  window.history.replaceState(null, '', '/')
+  loginConfigured.value = true
+  loginRequired.value = false
+  await loadPlaces()
+}
+
 onMounted(async () => {
+  const token = new URLSearchParams(window.location.search).get('token')
+  if (window.location.pathname === '/invite' && token) {
+    inviteToken.value = token
+    return
+  }
+
   try {
     const session = await fetchAuthSession()
     loginConfigured.value = session.loginConfigured
@@ -359,7 +380,9 @@ onMounted(async () => {
   <Toast position="top-right" />
   <ConfirmDialog />
 
-  <div v-if="loginRequired" class="min-h-screen grid place-items-center px-4">
+  <InviteView v-if="inviteToken" :token="inviteToken" @accepted="onInviteAccepted" />
+
+  <div v-else-if="loginRequired" class="min-h-screen grid place-items-center px-4">
     <form
       class="w-full max-w-sm rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-8 flex flex-col gap-4"
       @submit.prevent="submitLogin"
@@ -432,6 +455,15 @@ onMounted(async () => {
           @click="hereDialogVisible = true"
         />
         <Button label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
+        <Button
+          v-if="loginConfigured"
+          icon="pi pi-user-plus"
+          severity="secondary"
+          text
+          rounded
+          v-tooltip.bottom="'Partner einladen'"
+          @click="inviteDialogVisible = true"
+        />
         <Button
           v-if="loginConfigured"
           icon="pi pi-sign-out"
@@ -536,6 +568,8 @@ onMounted(async () => {
     <HereDialog v-model:visible="hereDialogVisible" :places="places" @saved="loadPlaces" />
 
     <ChatGptDialog v-model:visible="chatGptDialogVisible" @imported="onTripImported" />
+
+    <InviteDialog v-model:visible="inviteDialogVisible" />
 
     <DataTable
       v-if="view === 'list'"

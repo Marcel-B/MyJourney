@@ -128,6 +128,7 @@ export async function fetchNearby(lat: number, lon: number, radius = 400): Promi
 export interface AuthSession {
   loginConfigured: boolean
   authenticated: boolean
+  username?: string | null
 }
 
 export async function fetchAuthSession(): Promise<AuthSession> {
@@ -141,4 +142,30 @@ export async function login(username: string, password: string): Promise<void> {
 
 export async function logout(): Promise<void> {
   await client.post('/api/auth/logout')
+}
+
+// Einladelink für den Partner: erzeugen (angemeldet), Status prüfen und
+// einlösen (beides ohne Anmeldung, auf der Einlöse-Seite).
+export interface CreatedInvite {
+  token: string
+  expiresAt: string
+}
+
+export interface InviteStatus {
+  valid: boolean
+  error?: string | null
+}
+
+export async function createInvite(): Promise<CreatedInvite> {
+  const { data } = await client.post<CreatedInvite>('/api/auth/invites')
+  return data
+}
+
+export async function fetchInviteStatus(token: string): Promise<InviteStatus> {
+  const { data } = await client.get<InviteStatus>(`/api/auth/invites/${encodeURIComponent(token)}`)
+  return data
+}
+
+export async function acceptInvite(token: string, username: string, password: string): Promise<void> {
+  await client.post(`/api/auth/invites/${encodeURIComponent(token)}/accept`, { username, password })
 }

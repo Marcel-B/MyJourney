@@ -20,6 +20,9 @@ public class LoginService(IConfiguration configuration)
 
     public bool IsConfigured => _username is not null && _passwordHash is not null;
 
+    /// <summary>Der konfigurierte Benutzername (null, wenn kein Login konfiguriert ist).</summary>
+    public string? Username => IsConfigured ? _username : null;
+
     public bool Verify(string? username, string? password)
     {
         if (!IsConfigured || username is null || password is null) return false;
