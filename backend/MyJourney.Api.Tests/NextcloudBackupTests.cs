@@ -87,6 +87,51 @@ public class NextcloudBackupOptionsTests
             .Build();
 }
 
+public class WebDavClientTests
+{
+    [Fact]
+    public void CollectionUrls_legt_jede_Ordnerebene_unter_der_Dav_Wurzel_an()
+    {
+        var urls = HttpWebDavClient.CollectionUrls(
+            "https://nx.example.de/remote.php/dav/files/Admin/Backups/MyJourney/");
+
+        Assert.Equal(
+        [
+            "https://nx.example.de/remote.php/dav/files/Admin/Backups",
+            "https://nx.example.de/remote.php/dav/files/Admin/Backups/MyJourney",
+        ], urls);
+    }
+
+    [Fact]
+    public void CollectionUrls_unterstuetzt_den_aelteren_Webdav_Alias()
+    {
+        var urls = HttpWebDavClient.CollectionUrls(
+            "https://nx.example.de/remote.php/webdav/Backups/MyJourney");
+
+        Assert.Equal(
+        [
+            "https://nx.example.de/remote.php/webdav/Backups",
+            "https://nx.example.de/remote.php/webdav/Backups/MyJourney",
+        ], urls);
+    }
+
+    [Fact]
+    public void CollectionUrls_ohne_Unterordner_liefert_die_Basis_URL()
+    {
+        Assert.Equal(
+            ["https://nx.example.de/remote.php/dav/files/Admin"],
+            HttpWebDavClient.CollectionUrls("https://nx.example.de/remote.php/dav/files/Admin/"));
+    }
+
+    [Fact]
+    public void CollectionUrls_bei_unbekanntem_Aufbau_bleibt_ein_einzelnes_MKCOL()
+    {
+        Assert.Equal(
+            ["https://dav.example.de/irgendwo/Backups"],
+            HttpWebDavClient.CollectionUrls("https://dav.example.de/irgendwo/Backups/"));
+    }
+}
+
 public class NextcloudBackupRunnerTests
 {
     [Fact]
