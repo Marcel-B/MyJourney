@@ -115,4 +115,26 @@ Damit ist die App unter `https://<ct-name>.<tailnet>.ts.net` für alle Geräte i
 
   Status und Protokoll: `systemctl status myjourney-autoupdate` bzw. `journalctl -u myjourney-autoupdate -f`. Das Prüfintervall (Standard: 300 s) und der Zwangs-Rebuild ohne neue Commits (Standard: alle 7 Tage, damit Sicherheitsupdates der Basis-Images ankommen; `0` = aus) lassen sich über die Umgebungsvariablen `INTERVAL` und `FORCE_REBUILD_DAYS` in der Service-Datei anpassen; `./deploy/auto-update.sh --once` eignet sich alternativ für cron oder einen systemd-Timer.
 - **Logs:** `docker compose logs -f`
-- **Backup:** die Datei `data/myjourney.db` sichern (Container vorher kurz stoppen oder SQLite-Online-Backup nutzen).
+- **Backup:** die App sichert die Datenbank automatisch in die Nextcloud, sobald das konfiguriert ist (siehe unten). Alternativ von Hand: die Datei `data/myjourney.db` sichern (Container vorher kurz stoppen oder SQLite-Online-Backup nutzen).
+
+## 7. Nextcloud-Backup
+
+Die App lädt die Datenbank regelmäßig per WebDAV in die Nextcloud hoch: einmal täglich zur konfigurierten Uhrzeit und zusätzlich ein paar Minuten nach der letzten Datenänderung. Die Dateinamen rotieren über den Wochentag (`myjourney-mon.db` … `myjourney-sun.db`), es liegen also maximal sieben Stände in der Nextcloud. Der Snapshot entsteht per SQLite `VACUUM INTO` und ist auch bei laufendem Betrieb konsistent.
+
+1. In der Nextcloud ein **App-Passwort** erzeugen: Einstellungen → Sicherheit → „Neues App-Passwort erstellen" (nicht das normale Login-Passwort verwenden).
+
+2. Die Zugangsdaten in die `.env` neben der `docker-compose.yml` eintragen (`/opt/myjourney/.env` im CT) – sie gehören nicht ins Repo:
+
+   ```bash
+   NEXTCLOUD_BACKUP_ENABLED=true
+   # WebDAV-Basis: https://<nextcloud>/remote.php/dav/files/<benutzer>/<zielordner>
+   NEXTCLOUD_WEBDAV_URL=https://cloud.example.com/remote.php/dav/files/marcel/Backups/MyJourney
+   NEXTCLOUD_USERNAME=marcel
+   NEXTCLOUD_APP_PASSWORD=xxxxx-xxxxx-xxxxx-xxxxx-xxxxx
+   ```
+
+   Optional: `NEXTCLOUD_BACKUP_AT` (Standard `03:00`), `NEXTCLOUD_BACKUP_TIMEZONE` (Standard `Europe/Berlin`), `NEXTCLOUD_BACKUP_IDLE_MINUTES` (Backup nach Änderungen, Standard `10`, `0` = aus).
+
+3. `docker compose up -d` – im Log (`docker compose logs -f`) erscheint beim Start `Nextcloud-Backup aktiv …`, sonst der Grund, warum es aus ist. Der Zielordner wird automatisch angelegt.
+
+- **Wiederherstellen:** Container stoppen, gewünschte `myjourney-<tag>.db` aus der Nextcloud als `data/myjourney.db` ablegen, Container starten.

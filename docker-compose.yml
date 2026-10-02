@@ -18,3 +18,12 @@ services:
       # Öffentliche Basis-URL (z. B. https://<ct-name>.<tailnet>.ts.net) für das
       # OpenAPI-Schema – nötig für ChatGPT-Actions, sonst leer lassen.
       - PublicBaseUrl=${MYJOURNEY_PUBLIC_URL:-}
+      # Optional: tägliches Datenbank-Backup in die Nextcloud (WebDAV), siehe DEPLOY.md.
+      # Alles leer lassen = Backup aus.
+      - NEXTCLOUD_BACKUP_ENABLED=${NEXTCLOUD_BACKUP_ENABLED:-}
+      - NEXTCLOUD_WEBDAV_URL=${NEXTCLOUD_WEBDAV_URL:-}
+      - NEXTCLOUD_USERNAME=${NEXTCLOUD_USERNAME:-}
+      - NEXTCLOUD_APP_PASSWORD=${NEXTCLOUD_APP_PASSWORD:-}
+      - NEXTCLOUD_BACKUP_AT=${NEXTCLOUD_BACKUP_AT:-}
+      - NEXTCLOUD_BACKUP_TIMEZONE=${NEXTCLOUD_BACKUP_TIMEZONE:-}
+      - NEXTCLOUD_BACKUP_IDLE_MINUTES=${NEXTCLOUD_BACKUP_IDLE_MINUTES:-}
