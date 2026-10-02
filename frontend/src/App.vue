@@ -9,6 +9,7 @@ import IconField from 'primevue/iconfield'
 import InputIcon from 'primevue/inputicon'
 import InputNumber from 'primevue/inputnumber'
 import InputText from 'primevue/inputtext'
+import Menu from 'primevue/menu'
 import Select from 'primevue/select'
 import Rating from 'primevue/rating'
 import SelectButton from 'primevue/selectbutton'
@@ -64,6 +65,25 @@ const trips = ref<Trip[]>([])
 const hereDialogVisible = ref(false)
 const chatGptDialogVisible = ref(false)
 const view = ref<'list' | 'map' | 'trips'>('list')
+
+// Am Handy ist nur „Neues Ziel" ein eigener Button; die übrigen Aktionen
+// stecken in diesem Popup-Menü, damit die Kopfzeile nicht überläuft.
+const actionMenu = ref<InstanceType<typeof Menu> | null>(null)
+const actionMenuItems = computed(() => {
+  const items: Record<string, unknown>[] = [
+    { label: 'Google-Maps-Import', icon: 'pi pi-upload', command: () => importInput.value?.click() },
+    { label: 'ChatGPT', icon: 'pi pi-comments', command: () => { chatGptDialogVisible.value = true } },
+    { label: 'Hier bin ich', icon: 'pi pi-map-marker', command: () => { hereDialogVisible.value = true } },
+  ]
+  if (loginConfigured.value) {
+    items.push(
+      { separator: true },
+      { label: 'Partner einladen', icon: 'pi pi-user-plus', command: () => { inviteDialogVisible.value = true } },
+      { label: 'Abmelden', icon: 'pi pi-sign-out', command: () => { doLogout() } },
+    )
+  }
+  return items
+})
 
 // „In der Nähe“: Orte im Umkreis um einen Bezugspunkt, aufsteigend nach Entfernung.
 interface NearbyCenter {
@@ -428,8 +448,10 @@ onMounted(async () => {
         </h1>
         <p class="text-muted-color mt-1 mb-0">Wohnmobil-Ziele sammeln, Besuchtes festhalten, Reisen planen.</p>
       </div>
-      <div class="flex gap-2">
+      <div class="flex items-center gap-2">
+        <!-- Ab md-Breite: alle Aktionen als eigene Buttons wie bisher. -->
         <Button
+          class="hidden md:inline-flex whitespace-nowrap"
           label="Google-Maps-Import"
           icon="pi pi-upload"
           severity="secondary"
@@ -439,6 +461,7 @@ onMounted(async () => {
           @click="importInput?.click()"
         />
         <Button
+          class="hidden md:inline-flex whitespace-nowrap"
           label="ChatGPT"
           icon="pi pi-comments"
           severity="secondary"
@@ -447,6 +470,7 @@ onMounted(async () => {
           @click="chatGptDialogVisible = true"
         />
         <Button
+          class="hidden md:inline-flex whitespace-nowrap"
           label="Hier bin ich"
           icon="pi pi-map-marker"
           severity="secondary"
@@ -454,9 +478,10 @@ onMounted(async () => {
           v-tooltip.bottom="'Aktuellen Ort als besucht speichern'"
           @click="hereDialogVisible = true"
         />
-        <Button label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
+        <Button class="whitespace-nowrap" label="Neues Ziel" icon="pi pi-plus" @click="openCreateDialog" />
         <Button
           v-if="loginConfigured"
+          class="hidden md:inline-flex"
           icon="pi pi-user-plus"
           severity="secondary"
           text
@@ -466,6 +491,7 @@ onMounted(async () => {
         />
         <Button
           v-if="loginConfigured"
+          class="hidden md:inline-flex"
           icon="pi pi-sign-out"
           severity="secondary"
           text
@@ -473,6 +499,18 @@ onMounted(async () => {
           v-tooltip.bottom="'Abmelden'"
           @click="doLogout"
         />
+        <!-- Am Handy: die übrigen Aktionen in einem Menü. -->
+        <Button
+          class="md:hidden"
+          icon="pi pi-ellipsis-v"
+          severity="secondary"
+          outlined
+          aria-label="Weitere Aktionen"
+          aria-haspopup="true"
+          :loading="importing"
+          @click="actionMenu?.toggle($event)"
+        />
+        <Menu ref="actionMenu" :model="actionMenuItems" popup />
       </div>
       <input ref="importInput" type="file" accept=".json,.csv,.geojson" class="hidden" @change="onImportFileSelected" />
     </header>
@@ -581,7 +619,7 @@ onMounted(async () => {
       :rows-per-page-options="[10, 25, 50]"
       :sort-field="nearbyFilterReady ? 'distanceKm' : 'name'"
       :sort-order="1"
-      class="rounded-xl overflow-hidden border border-surface-200 dark:border-surface-700"
+      class="rounded-xl overflow-x-auto border border-surface-200 dark:border-surface-700"
     >
       <template #empty>
         <div v-if="nearbyFilterReady" class="text-center py-10 text-muted-color">
