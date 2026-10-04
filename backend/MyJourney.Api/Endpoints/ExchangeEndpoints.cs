@@ -109,7 +109,7 @@ public static class ExchangeEndpoints
         - Für neue Stopps bitte immer "latitude"/"longitude" (WGS84) angeben, dazu "country" und
           möglichst "region" (auf Deutsch) sowie kurze "notes" (Was ansehen? Warum hier halten?).
         - "overnight" beschreibt die Übernachtung am Stopp: "Stellplatz", "Campingplatz", "Frei"
-          (frei stehen) oder "None".
+          (frei stehen), "Parkplatz" (z. B. Autobahn-/Rastplatz) oder "None".
         - Reine Routenpunkte ohne eigenen Wert (z. B. eine Fähre) bekommen "saveAsPlace": false.
         - Gib ausschließlich gültiges JSON ohne Kommentare aus.
 

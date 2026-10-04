@@ -38,6 +38,7 @@ const overnightOptions = [
   { label: 'Stellplatz', value: 'Stellplatz' },
   { label: 'Campingplatz', value: 'Campingplatz' },
   { label: 'Frei stehen', value: 'Frei' },
+  { label: 'Parkplatz', value: 'Parkplatz' },
 ]
 
 const name = ref('')
@@ -74,8 +75,13 @@ function destroyMap() {
   marker = null
 }
 
-function renderMarker() {
-  if (!map || latitude.value == null || longitude.value == null) return
+function renderMarker(center = false) {
+  if (!map) return
+  if (latitude.value == null || longitude.value == null) {
+    marker?.remove()
+    marker = null
+    return
+  }
   const latLng: L.LatLngExpression = [latitude.value, longitude.value]
   const color = statusColors[status.value] ?? '#3b82f6'
   if (marker) {
@@ -90,7 +96,7 @@ function renderMarker() {
       weight: 2,
     }).addTo(map)
   }
-  map.setView(latLng, Math.max(map.getZoom(), 12))
+  if (center) map.setView(latLng, Math.max(map.getZoom(), 12))
 }
 
 async function toggleMap() {
@@ -100,13 +106,23 @@ async function toggleMap() {
     return
   }
   await nextTick()
-  if (!mapContainer.value || latitude.value == null || longitude.value == null) return
-  map = L.map(mapContainer.value).setView([latitude.value, longitude.value], 12)
+  if (!mapContainer.value) return
+  // Ohne Koordinaten startet die Karte mit Europa-Überblick, damit ein Punkt gesetzt werden kann.
+  const hasPoint = latitude.value != null && longitude.value != null
+  map = L.map(mapContainer.value).setView(
+    hasPoint ? [latitude.value!, longitude.value!] : [51, 10],
+    hasPoint ? 12 : 4,
+  )
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
   }).addTo(map)
-  renderMarker()
+  map.on('click', (e: L.LeafletMouseEvent) => {
+    const latLng = e.latlng.wrap()
+    latitude.value = Math.round(latLng.lat * 1e6) / 1e6
+    longitude.value = Math.round(latLng.lng * 1e6) / 1e6
+  })
+  renderMarker(true)
   // Der Dialog animiert noch beim Öffnen; ohne invalidateSize bleiben Kacheln grau.
   setTimeout(() => map?.invalidateSize(), 150)
 }
@@ -119,14 +135,7 @@ function startNavigation() {
 }
 
 watch([latitude, longitude, status], () => {
-  if (showMap.value && map) {
-    if (latitude.value == null || longitude.value == null) {
-      showMap.value = false
-      destroyMap()
-    } else {
-      renderMarker()
-    }
-  }
+  renderMarker()
 })
 
 onBeforeUnmount(destroyMap)
@@ -242,10 +251,10 @@ function submit() {
         </div>
       </div>
 
-      <div v-if="hasCoordinates" class="flex flex-col gap-2">
+      <div class="flex flex-col gap-2">
         <div class="flex flex-wrap gap-2">
           <Button
-            :label="showMap ? 'Karte ausblenden' : 'Karte anzeigen'"
+            :label="showMap ? 'Karte ausblenden' : hasCoordinates ? 'Karte anzeigen' : 'Punkt auf Karte setzen'"
             :icon="showMap ? 'pi pi-eye-slash' : 'pi pi-map'"
             severity="secondary"
             outlined
@@ -253,6 +262,7 @@ function submit() {
             @click="toggleMap"
           />
           <Button
+            v-if="hasCoordinates"
             label="Navigation starten"
             icon="pi pi-directions"
             severity="info"
@@ -261,6 +271,9 @@ function submit() {
             @click="startNavigation"
           />
         </div>
+        <small v-if="showMap" class="text-muted-color">
+          Tippe auf die Karte, um den GPS-Punkt {{ hasCoordinates ? 'zu korrigieren' : 'zu setzen' }} – gespeichert wird beim Klick auf „{{ isEdit ? 'Speichern' : 'Anlegen' }}“.
+        </small>
         <div
           v-show="showMap"
           ref="mapContainer"

@@ -704,6 +704,7 @@ onMounted(async () => {
           <Tag v-if="data.overnight === 'Stellplatz'" value="SP" severity="info" v-tooltip.top="'Stellplatz'" />
           <Tag v-else-if="data.overnight === 'Campingplatz'" value="CP" severity="success" v-tooltip.top="'Campingplatz'" />
           <Tag v-else-if="data.overnight === 'Frei'" value="Frei" severity="warn" v-tooltip.top="'Frei stehen'" />
+          <Tag v-else-if="data.overnight === 'Parkplatz'" value="P" severity="secondary" v-tooltip.top="'Parkplatz'" />
           <span v-else class="text-muted-color">–</span>
         </template>
       </Column>

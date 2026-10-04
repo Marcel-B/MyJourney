@@ -56,7 +56,7 @@ public static class TripImportService
                 "notes": { "type": ["string", "null"], "description": "Notizen zum Stopp: Was ansehen? Warum hier halten oder übernachten?" },
                 "country": { "type": ["string", "null"], "description": "Land auf Deutsch, z. B. \"Norwegen\"." },
                 "region": { "type": ["string", "null"], "description": "Region/Gegend, z. B. \"Südnorwegen\"." },
-                "overnight": { "enum": ["None", "Stellplatz", "Campingplatz", "Frei", null], "description": "Übernachtungsmöglichkeit: Stellplatz (Wohnmobil-Stellplatz), Campingplatz, Frei (frei stehen) oder None." },
+                "overnight": { "enum": ["None", "Stellplatz", "Campingplatz", "Frei", "Parkplatz", null], "description": "Übernachtungsmöglichkeit: Stellplatz (Wohnmobil-Stellplatz), Campingplatz, Frei (frei stehen), Parkplatz (z. B. Autobahn-/Rastplatz) oder None." },
                 "isStopoverCandidate": { "type": ["boolean", "null"], "description": "true, wenn sich der Ort auch als Zwischenstopp auf anderen Reisen eignet." },
                 "saveAsPlace": { "type": ["boolean", "null"], "description": "false für reine Routenpunkte (z. B. eine Fähre), die nicht als Ort in MyJourney gespeichert werden sollen. Standard: true." }
               }
