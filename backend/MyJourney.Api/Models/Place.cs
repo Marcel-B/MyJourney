@@ -22,6 +22,9 @@ public enum OvernightType
 
     /// <summary>Frei stehen (Wildcamping, ohne offiziellen Platz).</summary>
     Frei = 3,
+
+    /// <summary>Parkplatz, z. B. Autobahn- oder Rastplatz.</summary>
+    Parkplatz = 4,
 }
 
 public class Place
