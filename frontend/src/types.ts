@@ -16,6 +16,7 @@ export interface Place {
   visitedAt: string | null
   isStopoverCandidate: boolean
   overnight: OvernightType
+  headingDeg: number | null
   createdAt: string
   updatedAt: string
 }
@@ -33,6 +34,7 @@ export interface PlaceInput {
   visitedAt: string | null
   isStopoverCandidate: boolean
   overnight: OvernightType
+  headingDeg: number | null
 }
 
 export interface TripStop {

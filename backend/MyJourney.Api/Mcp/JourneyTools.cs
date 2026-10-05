@@ -102,7 +102,7 @@ public static class JourneyTools
     }
 
     [McpServerTool(Name = "find_places_nearby")]
-    [Description("Findet erfasste Orte im Umkreis eines Bezugspunkts (Standard 20 km), aufsteigend nach Entfernung sortiert. Der Bezugspunkt kommt entweder als Koordinaten oder als Name eines bereits erfassten Ortes. Ideal, um Zwischenstopps oder Übernachtungsmöglichkeiten entlang einer Route zu finden.")]
+    [Description("Findet erfasste Orte im Umkreis eines Bezugspunkts (Standard 20 km), aufsteigend nach Entfernung sortiert. Der Bezugspunkt kommt entweder als Koordinaten oder als Name eines bereits erfassten Ortes. Ideal, um Zwischenstopps oder Übernachtungsmöglichkeiten entlang einer Route zu finden. Mit headingDeg (aktuelle Fahrtrichtung, z. B. auf der Autobahn) kommen nur Orte voraus im Winkelkorridor, jeweils mit Peilung (bearingDeg) und – falls der Ort mit Fahrtrichtung gespeichert wurde – sameDirection als Hinweis, ob er auf der richtigen Fahrbahnseite liegt (null = unbekannt).")]
     public static async Task<List<NearbyPlaceResponse>> FindPlacesNearby(
         JourneyDbContext db,
         [Description("Breitengrad des Bezugspunkts (alternativ nearPlaceName angeben).")] double? latitude = null,
@@ -110,7 +110,9 @@ public static class JourneyTools
         [Description("Name eines erfassten Ortes als Bezugspunkt (Teiltreffer genügt), falls keine Koordinaten angegeben sind.")] string? nearPlaceName = null,
         [Description("Suchradius in Kilometern (Standard 20).")] double radiusKm = Services.NearbyPlaces.DefaultRadiusKm,
         [Description("true, um nur Zwischenstopp-Kandidaten zu liefern.")] bool stopoversOnly = false,
-        [Description("Optional \"Wishlist\" oder \"Visited\", um nach Status zu filtern.")] PlaceStatus? status = null)
+        [Description("Optional \"Wishlist\" oder \"Visited\", um nach Status zu filtern.")] PlaceStatus? status = null,
+        [Description("Aktuelle Fahrtrichtung in Grad (0–360, 0 = Norden): liefert nur Orte voraus in diesem Richtungskorridor.")] double? headingDeg = null,
+        [Description("Maximale Abweichung der Peilung von der Fahrtrichtung je Seite in Grad (Standard 45).")] double corridorDeg = Services.NearbyPlaces.DefaultCorridorDeg)
     {
         double lat, lon;
         Guid? centerId = null;
@@ -144,6 +146,18 @@ public static class JourneyTools
         if (stopoversOnly) query = query.Where(p => p.IsStopoverCandidate);
 
         var candidates = await query.ToListAsync();
+
+        if (headingDeg is not null)
+        {
+            if (headingDeg is < 0 or > 360)
+                throw new ArgumentException("headingDeg muss zwischen 0 und 360 Grad liegen.");
+            var corridor = Math.Clamp(corridorDeg, 1, Services.NearbyPlaces.MaxCorridorDeg);
+            return Services.NearbyPlaces.FindAhead(candidates, lat, lon, radius, headingDeg.Value, corridor)
+                .Where(h => h.Place.Id != centerId) // der Bezugsort selbst ist kein Treffer
+                .Select(h => new NearbyPlaceResponse(PlaceResponse.From(h.Place), h.DistanceKm, h.BearingDeg, h.SameDirection))
+                .ToList();
+        }
+
         return Services.NearbyPlaces.Find(candidates, lat, lon, radius)
             .Where(h => h.Place.Id != centerId) // der Bezugsort selbst ist kein Treffer
             .Select(h => new NearbyPlaceResponse(PlaceResponse.From(h.Place), h.DistanceKm))

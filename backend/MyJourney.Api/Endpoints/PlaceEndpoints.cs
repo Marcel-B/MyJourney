@@ -51,10 +51,14 @@ public static class PlaceEndpoints
             double lon,
             double? radiusKm,
             PlaceStatus? status,
-            bool? stopoversOnly) =>
+            bool? stopoversOnly,
+            double? heading,
+            double? corridorDeg) =>
         {
             if (lat is < -90 or > 90 || lon is < -180 or > 180)
                 return Results.BadRequest(new { error = "Ungültige Koordinaten." });
+            if (heading is < 0 or > 360)
+                return Results.BadRequest(new { error = "Die Fahrtrichtung muss zwischen 0 und 360 Grad liegen." });
 
             var radius = Math.Clamp(radiusKm ?? Services.NearbyPlaces.DefaultRadiusKm, 0.1, Services.NearbyPlaces.MaxRadiusKm);
 
@@ -64,6 +68,17 @@ public static class PlaceEndpoints
             if (stopoversOnly == true) query = query.Where(p => p.IsStopoverCandidate);
 
             var candidates = await query.ToListAsync();
+
+            // Mit Fahrtrichtung: nur Orte voraus im Winkelkorridor, inkl. Peilung und Seiten-Hinweis.
+            if (heading is not null)
+            {
+                var corridor = Math.Clamp(corridorDeg ?? Services.NearbyPlaces.DefaultCorridorDeg, 1, Services.NearbyPlaces.MaxCorridorDeg);
+                var aheadHits = Services.NearbyPlaces.FindAhead(candidates, lat, lon, radius, heading.Value, corridor)
+                    .Select(h => new NearbyPlaceResponse(PlaceResponse.From(h.Place), h.DistanceKm, h.BearingDeg, h.SameDirection))
+                    .ToList();
+                return Results.Ok(aheadHits);
+            }
+
             var hits = Services.NearbyPlaces.Find(candidates, lat, lon, radius)
                 .Select(h => new NearbyPlaceResponse(PlaceResponse.From(h.Place), h.DistanceKm))
                 .ToList();
@@ -72,7 +87,7 @@ public static class PlaceEndpoints
         })
         .WithName("ListPlacesNearby")
         .WithSummary("Erfasste Orte im Umkreis")
-        .WithDescription("Liefert die eigenen erfassten Orte innerhalb eines Radius (Standard 20 km) um einen Punkt, aufsteigend nach Entfernung sortiert. Optional nach Status oder Zwischenstopp-Eignung filterbar.");
+        .WithDescription("Liefert die eigenen erfassten Orte innerhalb eines Radius (Standard 20 km) um einen Punkt, aufsteigend nach Entfernung sortiert. Optional nach Status oder Zwischenstopp-Eignung filterbar. Mit heading (Fahrtrichtung in Grad) kommen nur Orte voraus im Winkelkorridor (corridorDeg, Standard ±45°), jeweils mit Peilung und – bei gespeicherter Fahrtrichtung des Ortes – Hinweis auf die Fahrbahnseite (sameDirection).");
 
         group.MapGet("/{id:guid}", async (JourneyDbContext db, Guid id) =>
             await db.Places.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id) is { } place
@@ -93,6 +108,11 @@ public static class PlaceEndpoints
                 {
                     ["rating"] = ["Die Bewertung muss zwischen 1 und 5 liegen."],
                 });
+            if (request.HeadingDeg is < 0 or > 360)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["headingDeg"] = ["Die Fahrtrichtung muss zwischen 0 und 360 Grad liegen."],
+                });
 
             var now = DateTime.UtcNow;
             var place = new Place
@@ -110,6 +130,7 @@ public static class PlaceEndpoints
                 VisitedAt = request.VisitedAt,
                 IsStopoverCandidate = request.IsStopoverCandidate,
                 Overnight = request.Overnight,
+                HeadingDeg = request.HeadingDeg is null ? null : Services.NearbyPlaces.NormalizeHeading(request.HeadingDeg.Value),
                 CreatedAt = now,
                 UpdatedAt = now,
             };
@@ -134,6 +155,11 @@ public static class PlaceEndpoints
                 {
                     ["rating"] = ["Die Bewertung muss zwischen 1 und 5 liegen."],
                 });
+            if (request.HeadingDeg is < 0 or > 360)
+                return Results.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["headingDeg"] = ["Die Fahrtrichtung muss zwischen 0 und 360 Grad liegen."],
+                });
 
             var place = await db.Places.FirstOrDefaultAsync(p => p.Id == id);
             if (place is null) return Results.NotFound();
@@ -150,6 +176,7 @@ public static class PlaceEndpoints
             place.VisitedAt = request.VisitedAt;
             place.IsStopoverCandidate = request.IsStopoverCandidate;
             place.Overnight = request.Overnight;
+            place.HeadingDeg = request.HeadingDeg is null ? null : Services.NearbyPlaces.NormalizeHeading(request.HeadingDeg.Value);
             place.UpdatedAt = DateTime.UtcNow;
 
             await db.SaveChangesAsync();

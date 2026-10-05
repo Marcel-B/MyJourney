@@ -12,6 +12,7 @@ import DatePicker from 'primevue/datepicker'
 import Rating from 'primevue/rating'
 import Button from 'primevue/button'
 import type { OvernightType, Place, PlaceInput } from '../types'
+import { compassPoint } from '../heading'
 
 const props = defineProps<{
   visible: boolean
@@ -54,6 +55,8 @@ const visitedAt = ref<Date | null>(null)
 const isStopoverCandidate = ref(false)
 // null = kein Button aktiv; wird beim Speichern als "None" gesendet.
 const overnight = ref<OvernightType | null>(null)
+// Fahrtrichtung beim Erfassen (für Plätze an Richtungsfahrbahnen, z. B. Rastplätze).
+const headingDeg = ref<number | null>(null)
 const submitted = ref(false)
 const showMap = ref(false)
 const mapContainer = ref<HTMLDivElement | null>(null)
@@ -160,6 +163,7 @@ watch(
     visitedAt.value = p?.visitedAt ? new Date(p.visitedAt) : null
     isStopoverCandidate.value = p?.isStopoverCandidate ?? false
     overnight.value = p && p.overnight !== 'None' ? p.overnight : null
+    headingDeg.value = p?.headingDeg ?? null
   },
 )
 
@@ -187,6 +191,7 @@ function submit() {
     visitedAt: status.value === 'Visited' ? toDateOnly(visitedAt.value) : null,
     isStopoverCandidate: isStopoverCandidate.value,
     overnight: overnight.value ?? 'None',
+    headingDeg: headingDeg.value,
   })
 }
 </script>
@@ -300,6 +305,21 @@ function submit() {
       <div class="flex flex-col gap-1">
         <label class="text-sm font-medium">Übernachtung vor Ort</label>
         <SelectButton v-model="overnight" :options="overnightOptions" option-label="label" option-value="value" />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label for="place-heading" class="text-sm font-medium">
+          Fahrtrichtung
+          <span v-if="headingDeg != null" class="font-normal text-muted-color">≈ {{ compassPoint(headingDeg) }}</span>
+        </label>
+        <InputNumber
+          id="place-heading" v-model="headingDeg" :min="0" :max="360"
+          :max-fraction-digits="0" suffix="°" placeholder="optional"
+          :input-style="{ width: '8rem' }"
+        />
+        <small class="text-muted-color">
+          Für Plätze an Richtungsfahrbahnen (z. B. Rastplätze): wird im Unterwegs-Modus beim Speichern automatisch gesetzt und zeigt später, ob der Platz auf deiner Fahrbahnseite liegt.
+        </small>
       </div>
 
       <div class="flex flex-col gap-1">

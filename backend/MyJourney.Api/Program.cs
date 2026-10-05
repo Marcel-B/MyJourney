@@ -124,6 +124,14 @@ using (var scope = app.Services.CreateScope())
     {
         // Spalte existiert bereits.
     }
+    try
+    {
+        db.Database.ExecuteSqlRaw("ALTER TABLE \"Places\" ADD COLUMN \"HeadingDeg\" REAL NULL");
+    }
+    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
+    {
+        // Spalte existiert bereits.
+    }
 
     // Später ergänzte Tabellen ebenso: CREATE TABLE IF NOT EXISTS spiegelt das
     // EF-Schema (Guid/DateTime als TEXT) und ist auf frischen Datenbanken ein No-op.

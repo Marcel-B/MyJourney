@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import Button from 'primevue/button'
 import Column from 'primevue/column'
 import ConfirmDialog from 'primevue/confirmdialog'
@@ -30,8 +30,10 @@ import TripsView from './components/TripsView.vue'
 import HereDialog from './components/HereDialog.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
 import { createPlace, deletePlace, fetchAuthSession, fetchPlaces, fetchTrips, importGooglePlaces, login, logout, markVisited, setApiKey, updatePlace } from './api/places'
+import { useDrivingMode } from './composables/useDrivingMode'
 import { useLiveUpdates } from './composables/useLiveUpdates'
 import { countryFlag } from './countryFlags'
+import { angleDeltaDeg, bearingDeg, formatHeading } from './heading'
 import type { Place, PlaceInput, PlaceStatus, Trip } from './types'
 
 const toast = useToast()
@@ -99,6 +101,42 @@ const nearbyCenter = ref<NearbyCenter | null>(null)
 const nearbyCenterPlaceId = ref<string | null>(null)
 const locating = ref(false)
 
+// Unterwegs-Modus: Position und Fahrtrichtung laufend verfolgen und nur Orte
+// voraus im Winkelkorridor zeigen – z. B. Rastplätze auf der Strecke.
+const {
+  active: drivingOn,
+  latitude: drivingLat,
+  longitude: drivingLon,
+  speedKmh: drivingSpeed,
+  headingDeg: drivingHeading,
+  error: drivingError,
+  start: startDriving,
+  stop: stopDriving,
+} = useDrivingMode()
+const drivingRadius = ref(100)
+/// Maximale Abweichung der Peilung von der Fahrtrichtung je Seite (wie im Backend).
+const DRIVING_CORRIDOR_DEG = 45
+
+// Unterwegs- und Nähe-Filter schließen sich aus: beide sortieren nach Entfernung
+// um einen eigenen Bezugspunkt.
+const drivingActive = computed({
+  get: () => drivingOn.value,
+  set: (on: boolean) => {
+    if (on) {
+      nearbyActive.value = false
+      startDriving()
+    } else {
+      stopDriving()
+    }
+  },
+})
+watch(nearbyActive, (on) => {
+  if (on) stopDriving()
+})
+
+const drivingReady = computed(() =>
+  drivingOn.value && drivingLat.value !== null && drivingHeading.value !== null)
+
 const viewOptions = [
   { icon: 'pi pi-list', value: 'list', label: 'Liste' },
   { icon: 'pi pi-map', value: 'map', label: 'Karte' },
@@ -143,6 +181,27 @@ const filteredPlaces = computed(() => {
       .some((field) => field?.toLowerCase().includes(term))
   })
 
+  // Unterwegs-Modus: nur Orte voraus im ±45°-Korridor, nächste zuerst. Solange
+  // Position oder Fahrtrichtung noch fehlen, bleibt die Liste ungefiltert.
+  if (drivingOn.value) {
+    const lat = drivingLat.value
+    const lon = drivingLon.value
+    const heading = drivingHeading.value
+    if (lat === null || lon === null || heading === null) return base
+
+    const radius = drivingRadius.value || 100
+    return base
+      .filter((p) => p.latitude !== null && p.longitude !== null)
+      .map((p) => {
+        const bearingDelta = angleDeltaDeg(bearingDeg(lat, lon, p.latitude!, p.longitude!), heading)
+        // Seitenerkennung: nur möglich, wenn der Ort mit Fahrtrichtung gespeichert wurde.
+        const sameDirection = p.headingDeg === null ? null : Math.abs(angleDeltaDeg(p.headingDeg, heading)) <= 90
+        return { ...p, distanceKm: distanceKm(lat, lon, p.latitude!, p.longitude!), bearingDelta, sameDirection }
+      })
+      .filter((p) => p.distanceKm <= radius && Math.abs(p.bearingDelta) <= DRIVING_CORRIDOR_DEG)
+      .sort((a, b) => a.distanceKm - b.distanceKm)
+  }
+
   const center = nearbyCenter.value
   if (!nearbyActive.value || !center) return base
 
@@ -153,6 +212,12 @@ const filteredPlaces = computed(() => {
     .filter((p) => p.distanceKm <= radius)
     .sort((a, b) => a.distanceKm - b.distanceKm)
 })
+
+/// Richtungsangabe relativ zur Fahrtrichtung, z. B. "geradeaus" oder "23° rechts".
+function formatAhead(delta: number): string {
+  if (Math.abs(delta) <= 10) return 'geradeaus'
+  return `${Math.round(Math.abs(delta))}° ${delta > 0 ? 'rechts' : 'links'}`
+}
 
 function onCenterPlaceChange(placeId: string | null) {
   const place = placeId ? places.value.find((p) => p.id === placeId) : null
@@ -588,7 +653,37 @@ onMounted(async () => {
           <ToggleSwitch v-model="nearbyActive" input-id="filter-nearby" />
           <label for="filter-nearby" class="text-sm">In der Nähe</label>
         </div>
+        <div class="flex items-center gap-2">
+          <ToggleSwitch v-model="drivingActive" input-id="filter-driving" />
+          <label for="filter-driving" class="text-sm">Unterwegs</label>
+        </div>
       </template>
+    </section>
+
+    <section v-if="view === 'list' && drivingOn" class="flex flex-wrap items-center gap-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-3">
+      <Tag
+        v-if="drivingHeading !== null"
+        :value="'Richtung ' + formatHeading(drivingHeading)"
+        icon="pi pi-compass"
+        severity="info"
+      />
+      <span v-if="drivingHeading !== null && drivingSpeed !== null" class="text-sm text-muted-color">{{ drivingSpeed }} km/h</span>
+      <span v-if="drivingHeading === null && !drivingError" class="text-sm text-muted-color">
+        <i class="pi pi-spin pi-spinner mr-1" />Fahrtrichtung wird bei Fahrt ermittelt – bis dahin zeigt die Liste alle Orte.
+      </span>
+      <span v-if="drivingError" class="text-sm text-amber-600 dark:text-amber-400">{{ drivingError }}</span>
+      <div class="flex items-center gap-2">
+        <label for="driving-radius" class="text-sm text-muted-color">Radius</label>
+        <InputNumber
+          v-model="drivingRadius"
+          input-id="driving-radius"
+          :min="1"
+          :max="1000"
+          suffix=" km"
+          :input-style="{ width: '6rem' }"
+        />
+      </div>
+      <span class="text-sm text-muted-color">Gezeigt werden Orte voraus in Fahrtrichtung (±{{ DRIVING_CORRIDOR_DEG }}°), nächste zuerst.</span>
     </section>
 
     <section v-if="view === 'list' && nearbyActive" class="flex flex-wrap items-center gap-3 rounded-xl border border-surface-200 dark:border-surface-700 bg-surface-0 dark:bg-surface-900 p-3">
@@ -632,7 +727,9 @@ onMounted(async () => {
 
     <TripsView v-if="view === 'trips'" :trips="trips" :places="places" :loading="loading" @changed="loadPlaces" />
 
-    <HereDialog v-model:visible="hereDialogVisible" :places="places" @saved="loadPlaces" />
+    <!-- Die Fahrtrichtung wird nur übernommen, solange der Unterwegs-Modus läuft –
+         eine Stunden alte Richtung aus einer früheren Fahrt wäre irreführend. -->
+    <HereDialog v-model:visible="hereDialogVisible" :places="places" :heading-deg="drivingOn ? drivingHeading : null" @saved="loadPlaces" />
 
     <ChatGptDialog v-model:visible="chatGptDialogVisible" @imported="onTripImported" />
 
@@ -646,12 +743,16 @@ onMounted(async () => {
       paginator
       :rows="10"
       :rows-per-page-options="[10, 25, 50]"
-      :sort-field="nearbyFilterReady ? 'distanceKm' : 'name'"
+      :sort-field="nearbyFilterReady || drivingReady ? 'distanceKm' : 'name'"
       :sort-order="1"
       class="rounded-xl overflow-x-auto border border-surface-200 dark:border-surface-700"
     >
       <template #empty>
-        <div v-if="nearbyFilterReady" class="text-center py-10 text-muted-color">
+        <div v-if="drivingReady" class="text-center py-10 text-muted-color">
+          <i class="pi pi-compass block text-4xl mb-3" />
+          Keine Orte voraus in Fahrtrichtung innerhalb von {{ drivingRadius }} km.
+        </div>
+        <div v-else-if="nearbyFilterReady" class="text-center py-10 text-muted-color">
           <i class="pi pi-map-marker block text-4xl mb-3" />
           Keine Orte im Umkreis von {{ nearbyRadius }} km um {{ nearbyCenter?.label }}.
         </div>
@@ -691,9 +792,28 @@ onMounted(async () => {
           <span v-else class="text-muted-color">–</span>
         </template>
       </Column>
-      <Column v-if="nearbyFilterReady" field="distanceKm" header="Entfernung" sortable>
+      <Column v-if="nearbyFilterReady || drivingReady" field="distanceKm" header="Entfernung" sortable>
         <template #body="{ data }">
           <span class="font-medium">{{ formatDistance(data.distanceKm) }}</span>
+        </template>
+      </Column>
+      <Column v-if="drivingReady" field="bearingDelta" header="Voraus">
+        <template #body="{ data }">
+          <div class="flex flex-col items-start gap-1">
+            <span class="text-sm">{{ formatAhead(data.bearingDelta) }}</span>
+            <Tag
+              v-if="data.sameDirection === false"
+              value="Gegenrichtung"
+              severity="warn"
+              v-tooltip.top="'In der anderen Fahrtrichtung gespeichert – liegt vermutlich auf der Gegenfahrbahn'"
+            />
+            <Tag
+              v-else-if="data.sameDirection === true"
+              value="Deine Seite"
+              severity="success"
+              v-tooltip.top="'In gleicher Fahrtrichtung gespeichert'"
+            />
+          </div>
         </template>
       </Column>
       <Column field="overnight" sortable>
