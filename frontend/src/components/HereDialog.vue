@@ -6,11 +6,14 @@ import InputText from 'primevue/inputtext'
 import Tag from 'primevue/tag'
 import { useToast } from 'primevue/usetoast'
 import { createPlace, fetchNearby, markVisited } from '../api/places'
+import { formatHeading } from '../heading'
 import type { NearbyPoi, OvernightType, Place } from '../types'
 
 const props = defineProps<{
   visible: boolean
   places: Place[]
+  /// Aktuelle Fahrtrichtung aus dem Unterwegs-Modus; wird beim Speichern neuer Orte übernommen.
+  headingDeg?: number | null
 }>()
 
 const emit = defineEmits<{
@@ -150,6 +153,7 @@ async function saveNew(name: string, latitude: number, longitude: number, overni
       visitedAt: today(),
       isStopoverCandidate: false,
       overnight,
+      headingDeg: props.headingDeg ?? null,
     })
     toast.add({ severity: 'success', summary: 'Hier bin ich', detail: `„${name}" ist als besucht gespeichert.`, life: 4000 })
     emit('saved')
@@ -233,7 +237,7 @@ async function saveNew(name: string, latitude: number, longitude: number, overni
         <Button label="Speichern" icon="pi pi-check" :disabled="!freeName.trim()" :loading="saving" @click="saveFreeName" />
       </div>
       <p class="text-xs text-muted-color m-0">
-        Gespeichert wird mit deinen aktuellen Koordinaten und dem heutigen Datum als Besuchsdatum.
+        Gespeichert wird mit deinen aktuellen Koordinaten und dem heutigen Datum als Besuchsdatum<template v-if="props.headingDeg != null">, dazu deine Fahrtrichtung aus dem Unterwegs-Modus ({{ formatHeading(props.headingDeg) }})</template>.
       </p>
     </div>
   </Dialog>

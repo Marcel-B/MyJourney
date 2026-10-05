@@ -56,6 +56,13 @@ public class Place
     /// <summary>Eignet sich als Zwischenstopp auf einer längeren Reise.</summary>
     public bool IsStopoverCandidate { get; set; }
 
+    /// <summary>
+    /// Fahrtrichtung in Grad (0–360, 0 = Norden), mit der der Ort beim Erfassen
+    /// angefahren wurde. Relevant für Plätze an Richtungsfahrbahnen (z. B. Autobahn-
+    /// Rastplätze): nur bei ähnlicher Fahrtrichtung liegt der Platz auf der richtigen Seite.
+    /// </summary>
+    public double? HeadingDeg { get; set; }
+
     public OvernightType Overnight { get; set; } = OvernightType.None;
 
     public DateTime CreatedAt { get; set; }

@@ -51,6 +51,7 @@ public static class ExchangeEndpoints
                     visitedAt = p.VisitedAt,
                     isStopoverCandidate = p.IsStopoverCandidate,
                     overnight = p.Overnight,
+                    headingDeg = p.HeadingDeg,
                     notes = p.Notes,
                 }),
                 trips = trips.Select(TripResponse.From),
