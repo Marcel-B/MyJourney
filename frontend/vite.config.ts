@@ -12,7 +12,9 @@ export default defineConfig({
     // Der Service Worker cacht nur die App-Shell (JS/CSS/Icons), keine API-Daten –
     // die Daten liegen weiterhin auf dem Server.
     VitePWA({
-      registerType: 'autoUpdate',
+      // 'prompt': eine neue Version wartet, bis der Nutzer im Hinweis "Aktualisieren"
+      // tippt (useAppUpdate + Toast in App.vue), statt die laufende App zu überfahren.
+      registerType: 'prompt',
       includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
       manifest: {
         name: 'MyJourney – Wohnmobil-Reiseplaner',
