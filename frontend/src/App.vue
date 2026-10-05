@@ -30,6 +30,7 @@ import TripsView from './components/TripsView.vue'
 import HereDialog from './components/HereDialog.vue'
 import PlaceDialog from './components/PlaceDialog.vue'
 import { createPlace, deletePlace, fetchAuthSession, fetchPlaces, fetchTrips, importGooglePlaces, login, logout, markVisited, setApiKey, updatePlace } from './api/places'
+import { useAppUpdate } from './composables/useAppUpdate'
 import { useDrivingMode } from './composables/useDrivingMode'
 import { useLiveUpdates } from './composables/useLiveUpdates'
 import { countryFlag } from './countryFlags'
@@ -348,6 +349,17 @@ async function reloadPlaces() {
 
 const live = useLiveUpdates(reloadPlaces)
 
+const { updateAvailable, applyUpdate } = useAppUpdate()
+watch(updateAvailable, (available) => {
+  if (!available) return
+  toast.add({
+    group: 'app-update',
+    severity: 'info',
+    summary: 'Neue Version verfügbar',
+    detail: 'Einmal aktualisieren, dann ist die App auf dem neuesten Stand.',
+  })
+})
+
 function openCreateDialog() {
   editingPlace.value = null
   dialogVisible.value = true
@@ -482,6 +494,18 @@ onMounted(async () => {
 
 <template>
   <Toast position="top-right" />
+  <!-- Bleibt stehen (kein life), bis der Nutzer aktualisiert oder ihn wegtippt. -->
+  <Toast position="bottom-center" group="app-update">
+    <template #message="slotProps">
+      <div class="flex flex-col gap-3 w-full">
+        <div>
+          <div class="font-semibold">{{ slotProps.message.summary }}</div>
+          <div class="text-sm">{{ slotProps.message.detail }}</div>
+        </div>
+        <Button label="Aktualisieren" icon="pi pi-refresh" size="small" @click="applyUpdate" />
+      </div>
+    </template>
+  </Toast>
   <ConfirmDialog />
 
   <InviteView v-if="inviteToken" :token="inviteToken" @accepted="onInviteAccepted" />
