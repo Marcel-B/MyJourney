@@ -27,3 +27,8 @@ services:
       - NEXTCLOUD_BACKUP_AT=${NEXTCLOUD_BACKUP_AT:-}
       - NEXTCLOUD_BACKUP_TIMEZONE=${NEXTCLOUD_BACKUP_TIMEZONE:-}
       - NEXTCLOUD_BACKUP_IDLE_MINUTES=${NEXTCLOUD_BACKUP_IDLE_MINUTES:-}
+      # Optional: Monitoring – Prometheus-Metriken unter /metrics und Logs an Loki,
+      # siehe DEPLOY.md §8. Alles leer lassen = Monitoring aus.
+      - MYJOURNEY_METRICS_ENABLED=${MYJOURNEY_METRICS_ENABLED:-}
+      - MYJOURNEY_LOKI_URL=${MYJOURNEY_LOKI_URL:-}
+      - MYJOURNEY_LOKI_HOST=${MYJOURNEY_LOKI_HOST:-}

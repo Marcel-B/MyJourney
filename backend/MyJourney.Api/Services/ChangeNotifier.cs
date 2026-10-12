@@ -28,6 +28,8 @@ public sealed class ChangeNotifier(IHttpContextAccessor httpContextAccessor)
         var origin = httpContextAccessor.HttpContext?.Request.Headers["X-Client-Id"].FirstOrDefault();
         if (string.IsNullOrWhiteSpace(origin) || origin.Length > 64) origin = null;
 
+        Monitoring.AppMetrics.DataChanges.Inc();
+
         var evt = new DataChangedEvent(version, origin);
         foreach (var channel in _subscribers.Values)
         {
@@ -47,8 +49,13 @@ public sealed class ChangeNotifier(IHttpContextAccessor httpContextAccessor)
         });
         var id = Guid.NewGuid();
         _subscribers[id] = channel;
+        Monitoring.AppMetrics.LiveClients.Set(_subscribers.Count);
         return (id, channel.Reader);
     }
 
-    public void Unsubscribe(Guid id) => _subscribers.TryRemove(id, out _);
+    public void Unsubscribe(Guid id)
+    {
+        _subscribers.TryRemove(id, out _);
+        Monitoring.AppMetrics.LiveClients.Set(_subscribers.Count);
+    }
 }
