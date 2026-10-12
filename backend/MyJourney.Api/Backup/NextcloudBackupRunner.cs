@@ -36,6 +36,7 @@ public sealed class NextcloudBackupRunner(
             if (collectionError is not null)
             {
                 logger.LogError("Nextcloud-Backup fehlgeschlagen: {Reason}", collectionError);
+                Monitoring.AppMetrics.BackupRuns.WithLabels("error").Inc();
                 return null;
             }
 
@@ -49,10 +50,12 @@ public sealed class NextcloudBackupRunner(
             if (uploadError is not null)
             {
                 logger.LogError("Nextcloud-Backup fehlgeschlagen: {Reason}", uploadError);
+                Monitoring.AppMetrics.BackupRuns.WithLabels("error").Inc();
                 return null;
             }
 
             logger.LogInformation("Nextcloud-Backup hochgeladen: {Filename}", filename);
+            Monitoring.AppMetrics.BackupRuns.WithLabels("ok").Inc();
             return filename;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -62,6 +65,7 @@ public sealed class NextcloudBackupRunner(
         catch (Exception ex)
         {
             logger.LogError(ex, "Nextcloud-Backup fehlgeschlagen");
+            Monitoring.AppMetrics.BackupRuns.WithLabels("error").Inc();
             return null;
         }
         finally

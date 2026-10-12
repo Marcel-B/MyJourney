@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.Json;
 using MyJourney.Api.Data;
 using MyJourney.Api.Endpoints;
 using MyJourney.Api.Security;
+using Prometheus;
 using Scalar.AspNetCore;
 
 // "dotnet run -- hash-password <passwort>" erzeugt den Hash für Security:Login:PasswordHash.
@@ -102,6 +103,18 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Monitoring: /metrics für Prometheus und Log-Versand an Loki (bleibt aus, solange
+// nicht konfiguriert – siehe DEPLOY.md und das scripts-Repo, docs/monitoring.md).
+var monitoringOptions = MyJourney.Api.Monitoring.MonitoringOptions.Load(builder.Configuration);
+builder.Services.AddSingleton(monitoringOptions);
+if (monitoringOptions.LokiConfigured)
+{
+    var lokiShipper = new MyJourney.Api.Monitoring.LokiShipper(monitoringOptions);
+    builder.Services.AddSingleton(lokiShipper);
+    builder.Services.AddHostedService(_ => new MyJourney.Api.Monitoring.LokiShipperService(lokiShipper));
+    builder.Logging.AddProvider(new MyJourney.Api.Monitoring.LokiLoggerProvider(lokiShipper));
+}
+
 // MCP-Server: macht die Reisedaten für KI-Assistenten über /mcp zugänglich.
 builder.Services.AddMcpServer()
     .WithHttpTransport()
@@ -164,6 +177,30 @@ app.UseMiddleware<ApiKeyMiddleware>();
 // Im Container liegt das gebaute Frontend in wwwroot und wird direkt mit ausgeliefert.
 app.UseDefaultFiles();
 app.UseStaticFiles();
+
+if (monitoringOptions.MetricsEnabled)
+{
+    // HTTP-Metriken hinter den statischen Dateien, damit Asset-Auslieferungen nicht mitzählen.
+    app.UseHttpMetrics();
+    MyJourney.Api.Monitoring.AppMetrics.RegisterDbGauges(app.Services);
+    // /metrics liegt bewusst nicht hinter dem API-Key (Prometheus scrapt ohne Login),
+    // enthält deshalb nur Zähler und Bestandszahlen, keine Inhalte oder Namen.
+    app.MapMetrics();
+    app.Logger.LogInformation("Metriken aktiv: /metrics");
+}
+else
+{
+    app.Logger.LogInformation("Metriken aus (MYJOURNEY_METRICS_ENABLED nicht aktiv)");
+}
+
+if (monitoringOptions.LokiConfigured)
+{
+    app.Logger.LogInformation("Loki-Logversand aktiv: {Url}", monitoringOptions.LokiPushUrl);
+}
+else
+{
+    app.Logger.LogInformation("Loki-Logversand aus (MYJOURNEY_LOKI_URL fehlt)");
+}
 
 app.MapOpenApi();
 app.MapScalarApiReference(); // interaktive API-Doku unter /scalar/v1

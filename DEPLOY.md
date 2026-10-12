@@ -138,3 +138,37 @@ Die App lädt die Datenbank regelmäßig per WebDAV in die Nextcloud hoch: einma
 3. `docker compose up -d` – im Log (`docker compose logs -f`) erscheint beim Start `Nextcloud-Backup aktiv …`, sonst der Grund, warum es aus ist. Der Zielordner wird automatisch angelegt.
 
 - **Wiederherstellen:** Container stoppen, gewünschte `myjourney-<tag>.db` aus der Nextcloud als `data/myjourney.db` ablegen, Container starten.
+
+## 8. Monitoring (Grafana/Prometheus/Loki)
+
+Die App kann sich an den gemeinsamen Monitoring-Stack anbinden (LXC `monitoring` im Tailnet; wo er läuft und die Konventionen: [`Marcel-B/scripts` → `docs/monitoring.md`](https://github.com/Marcel-B/scripts/blob/main/docs/monitoring.md)). Beides ist aus, solange es nicht konfiguriert ist.
+
+1. In der `.env` (`/opt/myjourney/.env` im CT) aktivieren:
+
+   ```bash
+   # Prometheus-Metriken unter /metrics (Textformat, ohne Login – enthält nur Zähler
+   # und Bestandszahlen, keine Ortsnamen oder sonstige Inhalte)
+   MYJOURNEY_METRICS_ENABLED=true
+   # Logs an Loki schicken (Basis-URL reicht, /loki/api/v1/push wird ergänzt).
+   # Löst "monitoring" im Container nicht auf, stattdessen die Tailscale-100.x-IP eintragen.
+   MYJOURNEY_LOKI_URL=http://monitoring:3100
+   # host-Label in Loki (der Rechner, auf dem die App läuft)
+   MYJOURNEY_LOKI_HOST=proxmox
+   ```
+
+   Dann `docker compose up -d`. Im Log (`docker compose logs -f`) steht beim Start, ob Metriken und Loki-Versand aktiv sind. `https://<ct-name>.<tailnet>.ts.net/metrics` zeigt die Messwerte.
+
+2. Auf dem Monitoring-Container die App als Prometheus-Ziel eintragen (wird binnen einer Minute ohne Neustart eingelesen):
+
+   ```yaml
+   # /opt/monitoring/prometheus/targets/myjourney.yml
+   - targets: [myjourney.tail6105c0.ts.net]
+     labels:
+       app: myjourney
+       __scheme__: https
+       __metrics_path__: /metrics
+   ```
+
+   Prüfen unter `http://monitoring:9090/targets` – MyJourney steht dort als `up`.
+
+Eigene Messwerte (Präfix `myjourney_`): `myjourney_places{status="wishlist"|"visited"}` und `myjourney_trips` (Bestand), `myjourney_data_changes_total` (gespeicherte Änderungen), `myjourney_live_clients` (offene Live-Update-Verbindungen), `myjourney_backup_runs_total{result="ok"|"error"}` (Nextcloud-Backups). Dazu kommen die HTTP-Metriken (`http_request_duration_seconds…`) und die Standard-Prozessmetriken für das Übersichts-Dashboard. Logs laufen in Loki unter `{app="myjourney"}`; die Container-Logs (`docker compose logs`) bleiben unverändert erhalten, und ist Loki nicht erreichbar, verwirft die App die Zeilen, statt zu blockieren.
