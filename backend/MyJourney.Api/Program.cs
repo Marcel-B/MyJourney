@@ -127,23 +127,29 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<JourneyDbContext>();
     db.Database.EnsureCreated();
 
-    // EnsureCreated legt nur neue Datenbanken an. Später ergänzte Spalten werden
-    // hier idempotent nachgerüstet ("duplicate column" heißt: schon vorhanden).
-    try
+    // EnsureCreated legt nur neue Datenbanken an. Später ergänzte Spalten werden hier
+    // nachgerüstet. Erst per PRAGMA prüfen, ob die Spalte fehlt: ein blindes ALTER TABLE
+    // schlägt bei vorhandener Spalte fehl, und EF loggt den Befehl als Error, bevor der
+    // Catch greift – das landete bei jedem Start als Fehlermeldung in Loki.
+    var placeColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+    var connection = db.Database.GetDbConnection();
+    connection.Open();
+    using (var command = connection.CreateCommand())
+    {
+        command.CommandText = """SELECT "name" FROM pragma_table_info('Places')""";
+        using var reader = command.ExecuteReader();
+        while (reader.Read())
+        {
+            placeColumns.Add(reader.GetString(0));
+        }
+    }
+    if (!placeColumns.Contains("Overnight"))
     {
         db.Database.ExecuteSqlRaw("ALTER TABLE \"Places\" ADD COLUMN \"Overnight\" INTEGER NOT NULL DEFAULT 0");
     }
-    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
-    {
-        // Spalte existiert bereits.
-    }
-    try
+    if (!placeColumns.Contains("HeadingDeg"))
     {
         db.Database.ExecuteSqlRaw("ALTER TABLE \"Places\" ADD COLUMN \"HeadingDeg\" REAL NULL");
-    }
-    catch (Microsoft.Data.Sqlite.SqliteException ex) when (ex.Message.Contains("duplicate column"))
-    {
-        // Spalte existiert bereits.
     }
 
     // Später ergänzte Tabellen ebenso: CREATE TABLE IF NOT EXISTS spiegelt das
