@@ -3,6 +3,7 @@ import { ref, watch, computed, nextTick, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import Dialog from 'primevue/dialog'
+import AutoComplete from 'primevue/autocomplete'
 import InputText from 'primevue/inputtext'
 import InputNumber from 'primevue/inputnumber'
 import Textarea from 'primevue/textarea'
@@ -11,7 +12,8 @@ import ToggleSwitch from 'primevue/toggleswitch'
 import DatePicker from 'primevue/datepicker'
 import Rating from 'primevue/rating'
 import Button from 'primevue/button'
-import type { OvernightType, Place, PlaceInput } from '../types'
+import type { GeocodeResult, OvernightType, Place, PlaceInput } from '../types'
+import { geocodeSearch } from '../api/places'
 import { compassPoint } from '../heading'
 
 const props = defineProps<{
@@ -59,6 +61,9 @@ const overnight = ref<OvernightType | null>(null)
 const headingDeg = ref<number | null>(null)
 const submitted = ref(false)
 const showMap = ref(false)
+// Ortssuche (OpenStreetMap Nominatim): ein gewählter Treffer füllt Name, Region, Land und Koordinaten.
+const searchValue = ref<GeocodeResult | string | null>(null)
+const searchResults = ref<GeocodeResult[]>([])
 const mapContainer = ref<HTMLDivElement | null>(null)
 
 let map: L.Map | null = null
@@ -130,6 +135,25 @@ async function toggleMap() {
   setTimeout(() => map?.invalidateSize(), 150)
 }
 
+async function onSearch(event: { query: string }) {
+  try {
+    searchResults.value = await geocodeSearch(event.query.trim())
+  } catch {
+    searchResults.value = []
+  }
+}
+
+function applySearchResult(event: { value: GeocodeResult }) {
+  const r = event.value
+  name.value = r.name
+  region.value = r.region ?? region.value
+  country.value = r.country ?? country.value
+  latitude.value = r.latitude
+  longitude.value = r.longitude
+  // Falls die Karte offen ist, direkt auf den Treffer zentrieren.
+  renderMarker(true)
+}
+
 function startNavigation() {
   if (latitude.value == null || longitude.value == null) return
   const destination = `${latitude.value},${longitude.value}`
@@ -150,6 +174,8 @@ watch(
     destroyMap()
     if (!visible) return
     submitted.value = false
+    searchValue.value = null
+    searchResults.value = []
     const p = props.place
     name.value = p?.name ?? ''
     kind.value = p?.kind ?? 'Place'
@@ -205,6 +231,31 @@ function submit() {
     @update:visible="emit('update:visible', $event)"
   >
     <div class="flex flex-col gap-4 pt-1">
+      <div class="flex flex-col gap-1">
+        <label for="place-search" class="text-sm font-medium">Ortssuche</label>
+        <AutoComplete
+          v-model="searchValue"
+          input-id="place-search"
+          :suggestions="searchResults"
+          option-label="displayName"
+          placeholder="z. B. Flåm, Gardasee, Schwarzwald"
+          :delay="600"
+          :min-length="2"
+          fluid
+          empty-search-message="Keine Treffer gefunden."
+          @complete="onSearch"
+          @option-select="applySearchResult"
+        >
+          <template #option="{ option }">
+            <div class="flex flex-col">
+              <span>{{ option.name }}</span>
+              <small class="text-muted-color">{{ option.displayName }}</small>
+            </div>
+          </template>
+        </AutoComplete>
+        <small class="text-muted-color">Treffer übernehmen Name, Region, Land und Koordinaten (OpenStreetMap).</small>
+      </div>
+
       <div class="flex flex-col gap-1">
         <label for="place-name" class="text-sm font-medium">Name *</label>
         <InputText

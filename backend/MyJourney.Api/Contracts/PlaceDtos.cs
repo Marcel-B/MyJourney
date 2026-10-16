@@ -62,6 +62,16 @@ public record MarkVisitedRequest(DateOnly? VisitedAt = null, int? Rating = null,
 /// <summary>Ein benannter Ort aus der Umgebung (OpenStreetMap) für "Hier bin ich".</summary>
 public record NearbyPoi(string Name, double Latitude, double Longitude, string Category, int DistanceMeters);
 
+/// <summary>Ein Treffer der Ortssuche (OpenStreetMap Nominatim).</summary>
+public record GeocodeResult(
+    string Name,
+    string DisplayName,
+    double Latitude,
+    double Longitude,
+    string Category,
+    string? Region,
+    string? Country);
+
 /// <summary>
 /// Ein erfasster Ort mit Entfernung zum Bezugspunkt (Umkreissuche "in der Nähe").
 /// Bei Suche mit Fahrtrichtung zusätzlich: Peilung zum Ort und – falls der Ort eine

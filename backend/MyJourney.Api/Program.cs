@@ -93,6 +93,13 @@ builder.Services.AddHttpClient<MyJourney.Api.Services.OverpassClient>(client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("MyJourney/1.0 (+https://github.com/Marcel-B/MyJourney)");
 });
 
+builder.Services.AddHttpClient<MyJourney.Api.Services.NominatimClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(15);
+    // Nominatim verlangt einen identifizierenden User-Agent.
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("MyJourney/1.0 (+https://github.com/Marcel-B/MyJourney)");
+});
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
@@ -218,6 +225,7 @@ app.MapImportEndpoints();
 app.MapExchangeEndpoints();
 app.MapOAuthEndpoints();
 app.MapNearbyEndpoints();
+app.MapGeocodeEndpoints();
 app.MapEventEndpoints();
 app.MapMcp("/mcp");
 

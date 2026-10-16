@@ -1,5 +1,5 @@
 import axios from 'axios'
-import type { ImportResult, MarkVisitedInput, NearbyPoi, Place, PlaceInput, PlaceKind, PlaceStatus, Trip, TripImportResult, TripInput } from '../types'
+import type { GeocodeResult, ImportResult, MarkVisitedInput, NearbyPoi, Place, PlaceInput, PlaceKind, PlaceStatus, Trip, TripImportResult, TripInput } from '../types'
 
 const API_KEY_STORAGE = 'myjourney.apiKey'
 
@@ -134,6 +134,11 @@ export async function fetchRegions(): Promise<string[]> {
 
 export async function fetchNearby(lat: number, lon: number, radius = 400): Promise<NearbyPoi[]> {
   const { data } = await client.get<NearbyPoi[]>('/api/nearby', { params: { lat, lon, radius } })
+  return data
+}
+
+export async function geocodeSearch(q: string): Promise<GeocodeResult[]> {
+  const { data } = await client.get<GeocodeResult[]>('/api/geocode', { params: { q } })
   return data
 }
 
