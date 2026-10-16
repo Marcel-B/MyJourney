@@ -104,3 +104,13 @@ export interface NearbyPoi {
   category: string
   distanceMeters: number
 }
+
+export interface GeocodeResult {
+  name: string
+  displayName: string
+  latitude: number
+  longitude: number
+  category: string
+  region: string | null
+  country: string | null
+}
